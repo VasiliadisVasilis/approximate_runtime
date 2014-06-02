@@ -4,8 +4,6 @@
 #include <pthread.h>
 #include <time.h>
 #include <ucontext.h>
-#define coord 0
-#define NUM_THREADS 4
 
 typedef struct info_t{
   
@@ -33,8 +31,10 @@ typedef struct info_t{
   
   unsigned int redo;
   
+  unsigned int reliable;
+  
 }info;
 
-void init_system();
+void init_system(unsigned int reliable_workers , unsigned int nonrel_workers);
 
 #endif 

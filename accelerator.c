@@ -4,12 +4,14 @@
 #include "coordinator.h"
 #include "task.h"
 
-task_t *assigned_jobs[NUM_THREADS];
+extern task_t **assigned_jobs;
 
 extern pthread_cond_t cord_condition;
 extern pthread_mutex_t cord_lock;
+
 extern pool_t *pending_tasks;
-extern pool_t *ready_tasks;
+extern pool_t *sig_ready_tasks;
+extern pool_t *non_sig_ready_tasks;
 extern pool_t *executing_tasks;
 extern pool_t *finished_tasks;
 
@@ -23,6 +25,11 @@ int check_schedule(void *task, void *dont_care){
 
 task_t* get_job(info *me){
   task_t *element = NULL;
+  pool_t *ready_tasks ;
+  if( me->reliable == 0 )
+    ready_tasks = non_sig_ready_tasks;
+  else
+    ready_tasks = sig_ready_tasks;
   do{
     pthread_mutex_lock(&ready_tasks->lock);
     if(ready_tasks->head){

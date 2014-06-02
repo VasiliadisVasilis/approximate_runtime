@@ -64,13 +64,13 @@ int main(){
    char sanity[10][10];
    struct timespec  tv1, tv2;
 #warning the init_system function must be added to the report and implement some kind of topology configuration e.g inform the number of reliable/unreliable workers.
-   init_system();
+   init_system(2,2);
    clock_gettime(CLOCK_MONOTONIC_RAW, &tv1);
    for ( i = 0 ; i < 10 ; i++){
      sprintf(sanity[i],"Mytask%d",i);
      for ( j = 0 ; j < 10 ; j++){
        sprintf(name[i][j],"task%d%d",i,j);
-       task[i][j] = new_task(hello,&name[i][j][0],sizeof(char)*10, my_sanity,sanity[i],10*sizeof(char),0,0);
+       task[i][j] = new_task(hello,&name[i][j][0],sizeof(char)*10, my_sanity,sanity[i],10*sizeof(char),i%2,0);
        push_task(task[i][j], "main_group");
     }
   }

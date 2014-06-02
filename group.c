@@ -11,8 +11,9 @@
 #include "coordinator.h"
 #include "task.h"
 
-extern info my_threads[NUM_THREADS];
+extern info *my_threads;
 extern int debug_flag ;
+extern unsigned int total_workers;
 int cmp_group(void *args1, void *args2){
   group_t *g1 = (group_t*) args1;
   char *g2 = (char*) args2;
@@ -105,13 +106,21 @@ int wait_group(char *group, float ratio, unsigned int redo, int (*func) (void *)
   
 }
 
-
+int whoami(){
+  int i;
+  pthread_t my_id = pthread_self();
+  for ( i = 0 ; i < total_workers ; i++)
+    if(my_id == my_threads[i].my_id )
+      return i;
+    return -1;
+}
 
 int exec_sanity(group_t *group){
 //   printf("IN HERE\n");
+  int id = whoami();
   volatile int flag = 0;
   volatile int result =0;
-  getcontext(&(my_threads[coord].context));
+  getcontext(&(my_threads[id].context));
   if(group->sanity_func){
     if(flag == 0){
       flag = 1;
@@ -134,7 +143,6 @@ float calculate_ratio(group_t *elem){
 void force_termination(void *args){
   task_t *task = (task_t*) args;
   pthread_mutex_lock(&task->lock);
-  int check = 0;
   pthread_t acc = task->execution_thread;
   if(my_threads[task->execution_id].flag == 1){
      fflush(stdout);
@@ -144,21 +152,20 @@ void force_termination(void *args){
 
 }
 
-void explicit_sync(void *args){
-  group_t *curr_group = (group_t*) args;
-  
+void explicit_sync(group_t *curr_group){
   float ratio;
-  if(!curr_group->locked){
+  if(!curr_group->locked)
     return ;
-  }
+  pthread_mutex_lock(&curr_group->lock);
   
   if ( curr_group->finished_sig_num == curr_group->total_sig_tasks){
     ratio = calculate_ratio(curr_group);
     if(ratio < curr_group ->ratio ){
+      pthread_mutex_unlock(&curr_group->lock);
       return ;
     }
-  }
-  else{
+  }else{
+    pthread_mutex_unlock(&curr_group->lock);
     return;
   }
 
@@ -169,23 +176,22 @@ void explicit_sync(void *args){
     if(!curr_group->terminated){
        exec_on_elem(curr_group->executing_q,force_termination); 
        curr_group->terminated = 1;
+       pthread_mutex_unlock(&curr_group->lock);
+       return;
     }
   }
 
-  do{
-  }while(curr_group->executing_num!=0);
-  
-
-  
-   curr_group->result = exec_sanity(curr_group);
-   curr_group->executed++;
-
-   curr_group ->locked = 0;
-    pthread_cond_signal(&curr_group->condition);
-
-
-    
+  if (curr_group->executing_num !=0){
+    pthread_mutex_unlock(&curr_group->lock);
     return;
+  }
+  curr_group->result = exec_sanity(curr_group);
+  curr_group->executed++;
+
+  curr_group ->locked = 0;
+  pthread_cond_signal(&curr_group->condition);
+  pthread_mutex_unlock(&curr_group->lock);
+  return;
   
 }
 

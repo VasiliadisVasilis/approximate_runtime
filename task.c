@@ -8,7 +8,8 @@
 
 
 extern pool_t *pending_tasks;
-extern pool_t *ready_tasks;
+extern pool_t *sig_ready_tasks;
+extern pool_t *non_sig_ready_tasks;
 extern pool_t *executing_tasks;
 extern pool_t *finished_tasks;
 pthread_mutex_t global_lock;
@@ -198,11 +199,12 @@ void dependent(void *m1, void *m2){
 
 void push_task(task_t *task, char *name){
   group_t *group;
-
+  pool_t *temp;
 //   pthread_mutex_lock(&global_lock);
   exec_on_elem_targs(pending_tasks,dependent,task);
-  exec_on_elem_targs(ready_tasks,dependent,task);
-
+  exec_on_elem_targs(sig_ready_tasks,dependent,task);
+  exec_on_elem_targs(non_sig_ready_tasks,dependent,task);
+  
   if(name == NULL){
     add_pool_head(pending_tasks,task);
     return;
@@ -217,10 +219,13 @@ void push_task(task_t *task, char *name){
   
   group->pending_num++;
   
-
+ if(task->significance == 0)
+  temp= non_sig_ready_tasks;
+ else
+  temp= sig_ready_tasks;
   
  if(task->dependencies == 0){
-   add_pool_tail(ready_tasks,task);
+   add_pool_tail(temp,task);
  }
  else
    add_pool_head(pending_tasks,task); 
@@ -248,7 +253,10 @@ void remove_dependency(void *removed, void *dependent){
   dpnt->dependencies--;
   if(dpnt->dependencies == 0){
     delete_element(pending_tasks,cmp_tasks, dpnt);
-    add_pool_tail(ready_tasks,dpnt);
+    if(dpnt->significance == 0)
+      add_pool_tail(non_sig_ready_tasks,dpnt);
+    else
+      add_pool_tail(sig_ready_tasks,dpnt);
   }
   return ;
 }
@@ -266,8 +274,11 @@ void finished_task(task_t* task){
       task->my_group->finished_non_sig_num++;
     else
       task->my_group->finished_sig_num++;
+    
     exec_on_elem_targs(task->dependent_tasks,remove_dependency,task);
     pthread_mutex_unlock(&task->lock);
+    
+    explicit_sync(task->my_group);
 }
 
 

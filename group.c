@@ -5,7 +5,7 @@
 #include <signal.h>
 #include <time.h>
 #include <ucontext.h>
-
+#include <errno.h>
 #include "list.h"
 #include "group.h"
 #include "coordinator.h"
@@ -32,7 +32,7 @@ group_t *create_group(char *name){
   element = search(groups, cmp_group, (void*) name); 
   
   if(element){
-    my_group = (group_t*) element -> args;
+    my_group = (group_t*) element->args;
     return my_group;
   }
   
@@ -67,17 +67,45 @@ group_t *create_group(char *name){
   my_group->sanity_func = NULL;
   
   my_group->redo = 0;
-  my_group->ratio = 1.0;
+  my_group->ratio = -1.0;
   
   pthread_cond_init(&my_group->condition,NULL);
   
   return my_group;
 }
 
+float calculate_ratio(group_t *elem){
+  float a = elem->finished_non_sig_num;
+  float b = elem->total_non_sig_tasks;
+  if( b != 0.0 )
+    return a/ b;
+  else return 1.1;
+}
 
-int wait_group(char *group, float ratio, unsigned int redo, int (*func) (void *), void * args){
+
+
+void force_termination(void *args){
+  task_t *task = (task_t*) args;
+  pthread_mutex_lock(&task->lock);
+  pthread_t acc = task->execution_thread;
+  if(my_threads[task->execution_id].flag == 1){
+    fflush(stdout);
+    pthread_kill(acc,SIGUSR1);
+  }
+  pthread_mutex_unlock(&task->lock);
+  
+}
+
+
+int wait_group(char *group, int (*func) (void *),  void * args , unsigned int type, unsigned int time_ms, unsigned int time_us, float ratio, unsigned int redo){
   list_t *list;
   group_t *my_group;
+  printf("going to wait group\n");
+  struct timespec watchdog ={0, 0};
+  time_t secs;
+  long nsecs;
+  int ret;
+  float temp;
   if(!groups){
     printf("No such group\n");
     return 0;
@@ -93,13 +121,88 @@ int wait_group(char *group, float ratio, unsigned int redo, int (*func) (void *)
   my_group = (group_t*) list->args; //get actual group
   
   pthread_mutex_lock(&my_group->lock);
+  if (type & SYNC_RATIO){
+    printf("Calculating my ratio : ");
+    temp = calculate_ratio(my_group);
+    printf("%f executing num %d\n", ratio,my_group->executing_num);
+    if(temp >= ratio){
+      if(my_group->executing_num == 0 && my_group->total_sig_tasks == my_group->finished_sig_num){
+	my_group->schedule = 0;
+	printf("I am going to execute sanity funct\n");
+	my_group->result = exec_sanity(my_group);
+	my_group->executed++;
+	pthread_mutex_unlock(&my_group->lock);
+	return 1;
+      }
+    }else{
+      printf("Number of pending tasks %d\n",my_group->finished_sig_num);
+    }
+  }
+
+  if( (type&SYNC_TIME) ){
+      clock_gettime(CLOCK_REALTIME, &watchdog);
+      secs = watchdog.tv_sec + time_ms/1000;
+      nsecs = watchdog.tv_nsec + (time_ms % 1000)*100000;
+      watchdog.tv_sec = secs + nsecs / 1000000000L;
+      watchdog.tv_nsec = nsecs % 1000000000L;
+  }
+  
+
   my_group->sanity_func = func;
   my_group->sanity_func_args = args;
   my_group->ratio = ratio;
   my_group->redo = redo;
   my_group->locked = 1;
-  pthread_cond_wait(&my_group->condition, &my_group->lock);
-
+  if((type & SYNC_TIME)){
+    do {
+      ret =pthread_cond_timedwait(&my_group->condition, &my_group->lock, &watchdog);
+      if (ret == ETIMEDOUT) {
+	printf("Watchdog timer went off\n");
+	if(my_group->finished_sig_num != my_group->total_sig_tasks){
+	  my_group->ratio = 0.0;
+	  printf("Shall wait for all significant tasks\n");
+	  pthread_cond_wait(&my_group->condition, &my_group->lock);
+	  break;
+	}
+	else{
+	  if(my_group->executing_num != 0){
+	    if(!my_group->terminated){
+	      pthread_mutex_lock(&my_group->executing_q->lock);
+	      exec_on_elem(my_group->executing_q,force_termination); 
+	      pthread_mutex_unlock(&my_group->executing_q->lock);
+	      my_group->terminated = 1;
+	      pthread_mutex_unlock(&my_group->lock);
+	    }
+	  }
+	  while(my_group->executing_num != 0){}
+	  my_group->result = exec_sanity(my_group);
+	  my_group->executed++;
+	}
+      } else if (ret == 0) {
+	printf("ratio of tasks achieved\n");
+      }
+    }while (ret == EINTR); 
+  }
+  else if(type&SYNC_ALL){
+    if(my_group->finished_sig_num != my_group->total_sig_tasks)
+      pthread_cond_wait(&my_group->condition, &my_group->lock);
+    else{
+      if(my_group->executing_num != 0){
+	if(!my_group->terminated){
+	  pthread_mutex_lock(&my_group->executing_q->lock);
+	  exec_on_elem(my_group->executing_q,force_termination); 
+	  pthread_mutex_unlock(&my_group->executing_q->lock);
+	  my_group->terminated = 1;
+	  pthread_mutex_unlock(&my_group->lock);
+	}
+      }
+      while(my_group->executing_num != 0){}
+      my_group->result = exec_sanity(my_group);
+      my_group->executed++;
+    }
+  }
+  else 
+    pthread_cond_wait(&my_group->condition, &my_group->lock);
   pthread_mutex_unlock(&my_group->lock);
   
   return 1; 
@@ -120,7 +223,10 @@ int exec_sanity(group_t *group){
   int id = whoami();
   volatile int flag = 0;
   volatile int result =0;
-  getcontext(&(my_threads[id].context));
+  if (id == -1 ){
+    printf("I am main application\n");
+  }else
+    getcontext(&(my_threads[id].context));
   if(group->sanity_func){
     if(flag == 0){
       flag = 1;
@@ -132,34 +238,21 @@ int exec_sanity(group_t *group){
   return result;
 }
 
-float calculate_ratio(group_t *elem){
-  float a = elem->finished_non_sig_num;
-  float b = elem->total_non_sig_tasks;
-  if( b != 0.0 )
-    return a/ b;
-  else return 1.1;
-}
 
-void force_termination(void *args){
-  task_t *task = (task_t*) args;
-  pthread_mutex_lock(&task->lock);
-  pthread_t acc = task->execution_thread;
-  if(my_threads[task->execution_id].flag == 1){
-     fflush(stdout);
-     pthread_kill(acc,SIGUSR1);
-  }
-  pthread_mutex_unlock(&task->lock);
 
-}
 
 void explicit_sync(group_t *curr_group){
   float ratio;
-  if(!curr_group->locked)
-    return ;
   pthread_mutex_lock(&curr_group->lock);
+  if(!curr_group->locked){
+    pthread_mutex_unlock(&curr_group->lock);
+    return ;
+  }
+ 
   
   if ( curr_group->finished_sig_num == curr_group->total_sig_tasks){
     ratio = calculate_ratio(curr_group);
+    printf("Ratio is %f\n",ratio);
     if(ratio < curr_group ->ratio ){
       pthread_mutex_unlock(&curr_group->lock);
       return ;
@@ -174,7 +267,9 @@ void explicit_sync(group_t *curr_group){
   
   if(curr_group->executing_num != 0){
     if(!curr_group->terminated){
+       pthread_mutex_lock(&curr_group->executing_q->lock);
        exec_on_elem(curr_group->executing_q,force_termination); 
+       pthread_mutex_unlock(&curr_group->executing_q->lock);
        curr_group->terminated = 1;
        pthread_mutex_unlock(&curr_group->lock);
        return;

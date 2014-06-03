@@ -206,10 +206,11 @@ void push_task(task_t *task, char *name){
   exec_on_elem_targs(non_sig_ready_tasks,dependent,task);
   
   if(name == NULL){
+    pthread_mutex_lock(&pending_tasks->lock);
     add_pool_head(pending_tasks,task);
+    pthread_mutex_unlock(&pending_tasks->lock);
     return;
   }
-  
   group = create_group(name);
   task->my_group = group;
   if(task->significance == 1)
@@ -225,13 +226,18 @@ void push_task(task_t *task, char *name){
   temp= sig_ready_tasks;
   
  if(task->dependencies == 0){
+   pthread_mutex_lock(&temp->lock);
    add_pool_tail(temp,task);
+   pthread_mutex_unlock(&temp->lock);
  }
- else
+ else{
+   pthread_mutex_lock(&pending_tasks->lock);
    add_pool_head(pending_tasks,task); 
-
+   pthread_mutex_unlock(&pending_tasks->lock);
+ }
+ pthread_mutex_lock(&group->pending_q->lock);
  add_pool_head(group->pending_q,task);
- 
+ pthread_mutex_unlock(&group->pending_q->lock);
 //  pthread_mutex_unlock(&global_lock);
 }
 
@@ -264,8 +270,8 @@ void remove_dependency(void *removed, void *dependent){
 void finished_task(task_t* task){
     task_t *elem;
     
-    pthread_mutex_lock(&task->lock);
-     elem = delete_element(task->my_group->executing_q,cmp_tasks,task);
+    pthread_mutex_lock(&task->my_group->executing_q->lock);
+    elem = delete_element(task->my_group->executing_q,cmp_tasks,task);
      if(!elem)
        printf("Something went wrong\n");
     add_pool_head(task->my_group->finished_q, task);
@@ -276,7 +282,7 @@ void finished_task(task_t* task){
       task->my_group->finished_sig_num++;
     
     exec_on_elem_targs(task->dependent_tasks,remove_dependency,task);
-    pthread_mutex_unlock(&task->lock);
+    pthread_mutex_unlock(&task->my_group->executing_q->lock);
     
     explicit_sync(task->my_group);
 }
@@ -286,6 +292,7 @@ void move_q(task_t *task){
   
   if(!task)
     return;
+  
   pthread_mutex_lock(&task->my_group->pending_q->lock);
   delete_element(task->my_group->pending_q,cmp_tasks,task);
   pthread_mutex_unlock(&task->my_group->pending_q->lock);

@@ -23,7 +23,30 @@ void explicit_sync(void *args);
 void* main_acc(void *args);
 void finished_task(task_t* task);
 
+void print_trace(int nsig)
+{
+  printf("print_trace: got signal %d\n", nsig);
+  
+  void *array[32];
+  size_t size;
+  char **strings;
+  size_t cnt;
+  
+  
+  size = backtrace(array, 32);
+  strings = backtrace_symbols(array, size);
+  
+  for (cnt=0; cnt < size; ++cnt) {
+    fprintf(stderr, "%s\n", strings[cnt]);
+  }
+  
+}
 
+void my_action(int sig, siginfo_t* siginfo, void *context){
+  printf("IN HERE\n");
+  print_trace(sig);
+  exit(0);
+}
 
 void action(int sig, siginfo_t* siginfo, void *context){
   int i;
@@ -44,6 +67,7 @@ void action(int sig, siginfo_t* siginfo, void *context){
 }
 
 
+
 void* init_acc(void *args){
 
   struct sigaction act;
@@ -57,7 +81,7 @@ void* init_acc(void *args){
     (sigaction(SIGBUS,&act,NULL)<0)||
     (sigaction(SIGUSR1,&act,NULL)<0)||
     (sigaction(SIGUSR2,&act,NULL)<0)||
-//     (sigaction(SIGSEGV,&act,NULL)<0)||
+     (sigaction(SIGSEGV,&act,NULL)<0)||
       (sigaction(SIGSYS,&act,NULL)<0) ) {
       perror("Could not assign signal handlers\n");
       exit(0);
@@ -82,6 +106,22 @@ void init_system(unsigned int reliable_workers , unsigned int nonrel_workers){
   finished_tasks = create_pool();
   total_workers = reliable_workers + nonrel_workers;
   int i;
+  struct sigaction act;
+  act.sa_sigaction = my_action;
+  act.sa_flags = SA_SIGINFO;
+  
+  if ( (sigaction(SIGILL,&act,NULL)<0)||
+    (sigaction(SIGFPE,&act,NULL)<0)||
+    (sigaction(SIGPIPE,&act,NULL)<0)||
+    (sigaction(SIGBUS,&act,NULL)<0)||
+    (sigaction(SIGUSR1,&act,NULL)<0)||
+    (sigaction(SIGUSR2,&act,NULL)<0)||
+    (sigaction(SIGSEGV,&act,NULL)<0)||
+    (sigaction(SIGSYS,&act,NULL)<0) ) {
+    perror("Could not assign signal handlers\n");
+  exit(0);
+    }
+  
   if(total_workers == 0){
     printf("Cannot request 0 workers\n Aborting....\n");
     exit(0);

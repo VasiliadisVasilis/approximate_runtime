@@ -14,7 +14,7 @@ pool_t* create_pool(){
 
 list_t * create_list(){
   list_t *new =(list_t *) malloc (sizeof(list_t));
- assert(new);
+  assert(new);
   new->args=NULL;
   new->next=NULL;
   return new;
@@ -62,7 +62,8 @@ list_t* add_pool_tail(pool_t *pool, void *element){
 void* remove_element(pool_t *pool, list_t *node, list_t *prev){
   
   void *ptr;
- 
+  if (prev == NULL && node != pool->head)
+    assert(0);
   if(node == pool->head ){
       pool->head = node->next;
       if (node == pool->tail)

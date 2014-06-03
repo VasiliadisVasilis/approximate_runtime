@@ -45,6 +45,7 @@ task_t* get_job(info *me){
 	me->redo = element->redo;
 	element->execution_thread = me->my_id;
 	element->execution_id = me->id;
+	
       }
       pthread_mutex_unlock(&ready_tasks->lock);
   }while(element == NULL);
@@ -60,7 +61,6 @@ void* main_acc(void *args){
     exec_task=get_job(whoami);
     assert(exec_task);
     getcontext(&(whoami->context));
-    
     if(whoami->flag == 0){
       whoami->flag = 1;
       whoami->execution(whoami->execution_args);
@@ -69,7 +69,7 @@ void* main_acc(void *args){
     
     whoami->return_val = 1;
     if(whoami->sanity)
-      whoami->return_val = whoami->sanity(whoami->sanity_args,whoami->execution_args);  
+      whoami->return_val = whoami->sanity(whoami->execution_args,whoami->sanity_args);  
     if ( whoami->return_val != 1  && whoami->redo >0 ){
       whoami->redo--;
       whoami->flag =0;

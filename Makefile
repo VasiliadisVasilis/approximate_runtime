@@ -1,14 +1,14 @@
 CC=gcc
 CFLAGS=-c -Wall -g
-LDFLAGS= -lpthread  -lrt
-SOURCES=main.c list.c group.c task.c coordinator.c  accelerator.c
+LDFLAGS= -lpthread  -lrt -fPIC
+SOURCES=list.c group.c task.c coordinator.c  accelerator.c
 OBJECTS=$(SOURCES:.c=.o)
-EXECUTABLE=debug
+EXECUTABLE=librtsrel.so
 
 all: $(SOURCES) $(EXECUTABLE)
 	
 $(EXECUTABLE): $(OBJECTS) 
-	$(CC) $(OBJECTS) -o $@ $(LDFLAGS) 
+	$(CC) -shared $(OBJECTS) -o $@ $(LDFLAGS) 
 
 .c.o:
 	$(CC) $(LDFLAGS) $(CFLAGS) $< -o $@

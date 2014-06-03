@@ -4,6 +4,10 @@
 #include <pthread.h>
 #include "list.h"
 
+#define SYNC_TIME 1
+#define SYNC_RATIO 2
+#define SYNC_ALL 4
+
 
 pthread_mutex_t group_lock;
 pool_t *groups;
@@ -46,5 +50,5 @@ typedef struct groups{
 }group_t;
 
 group_t *create_group(char *name);
-int wait_group(char *group, float ratio, unsigned int redo, int (*func) (void *), void * args);
+int wait_group(char *group, int (*func) (void *),  void * args , unsigned int type, unsigned int time_ms, unsigned int time_us, float ratio, unsigned int redo);
 #endif

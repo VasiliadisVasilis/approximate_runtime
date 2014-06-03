@@ -1,8 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
-#include "group.h"
-#include "task.h"
-#include "coordinator.h"
+#include "runtime.h"
 #include <time.h>
 
 void latency(){
@@ -63,8 +61,8 @@ int main(){
    char name[10][10][10];
    char sanity[10][10];
    struct timespec  tv1, tv2;
-#warning the init_system function must be added to the report and implement some kind of topology configuration e.g inform the number of reliable/unreliable workers.
-   init_system(2,2);
+#warning the init_system function must be added to the report
+   init_system(8,2);
    clock_gettime(CLOCK_MONOTONIC_RAW, &tv1);
    for ( i = 0 ; i < 10 ; i++){
      sprintf(sanity[i],"Mytask%d",i);
@@ -74,7 +72,10 @@ int main(){
        push_task(task[i][j], "main_group");
     }
   }
-  wait_group("main_group" , 0.8f, 0, big_sanity, sanity[1]) ; 
+//   wait_group(char *group, int (*func) (void *),  void * args , 
+// 	     unsigned int type, unsigned int time_ms, unsigned int 
+// 	     time_us, float ratio, unsigned int redo);
+  wait_group("main_group" , big_sanity, sanity[1] , SYNC_RATIO|SYNC_TIME, 2 , 0 , 0.6f, 0) ; 
 //    monte_carlo_pi(1000000);
    clock_gettime(CLOCK_MONOTONIC_RAW, &tv2);
    

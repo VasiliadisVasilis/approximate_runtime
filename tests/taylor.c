@@ -87,7 +87,7 @@ double taylor_series(double *x)
     temp = new_task(taylor_series_task,&data[i],sizeof(data_t), trc_taylor,NULL,0,0,0);
     push_task(temp,"taylor");
   }
-  wait_group("taylor", grc_taylor,  terms ,SYNC_RATIO , 0, 0, 0.1,  0);
+  wait_group("taylor", grc_taylor,  terms ,SYNC_RATIO , 0, 0, 1.0,  0);
   for (i=0; i<NUM_TERMS; ++i)
   {
     ret += terms[i];

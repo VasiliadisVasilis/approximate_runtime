@@ -22,6 +22,9 @@ int cmp_tasks(void *args1, void *args2){
   return 0;
 }
 
+// Task descriptor allocator
+// I am just filling the descriptor's variables values.
+
 task_t* new_task(void  (*exec)(void *), void *args, unsigned int size_args ,int (*san)(void *, void *),
 		 void *san_args, unsigned int san_size_args , unsigned char sig, unsigned int redo){
   static int id = 0;
@@ -48,19 +51,25 @@ task_t* new_task(void  (*exec)(void *), void *args, unsigned int size_args ,int 
   
   new->num_out = 0;
   new->outputs = NULL;
-  
-  new->dependencies = 0;
+
   new->my_group = NULL;
   
-  new->depend_on = create_pool();
-  new->dependent_tasks = create_pool();
-//    printf("new task (id:%d)  is created \n",new->task_id);
+#ifdef DEPENDENCIES 
+#warning compilin with dependencies turned on
+  new->depend_on = create_pool(); // this can be commented out
+  new->dependent_tasks = create_pool(); // this can be commented out
+  new->dependencies = 0;
+#endif
   return new;
   
 }
 
+void print_id(void *args){
+  task_t *me = (task_t*) args ;
+  printf("%d ",me->task_id);
+}
 
-
+#ifdef DEPENDENCIES 
 void define_in_dependencies(task_t* task, int number, ...){
   va_list args;
   int i;
@@ -197,54 +206,6 @@ void dependent(void *m1, void *m2){
   
 }
 
-void push_task(task_t *task, char *name){
-  group_t *group;
-  pool_t *temp;
-//   pthread_mutex_lock(&global_lock);
-  exec_on_elem_targs(pending_tasks,dependent,task);
-  exec_on_elem_targs(sig_ready_tasks,dependent,task);
-  exec_on_elem_targs(non_sig_ready_tasks,dependent,task);
-  
-  if(name == NULL){
-    pthread_mutex_lock(&pending_tasks->lock);
-    add_pool_head(pending_tasks,task);
-    pthread_mutex_unlock(&pending_tasks->lock);
-    return;
-  }
-  group = create_group(name);
-  task->my_group = group;
-  if(task->significance == 1)
-    group->total_sig_tasks++;
-  if(task->significance == 0)
-    group->total_non_sig_tasks++;
-  
-  group->pending_num++;
-  
- if(task->significance == 0)
-  temp= non_sig_ready_tasks;
- else
-  temp= sig_ready_tasks;
-  
- if(task->dependencies == 0){
-   pthread_mutex_lock(&temp->lock);
-   add_pool_tail(temp,task);
-   pthread_mutex_unlock(&temp->lock);
- }
- else{
-   pthread_mutex_lock(&pending_tasks->lock);
-   add_pool_head(pending_tasks,task); 
-   pthread_mutex_unlock(&pending_tasks->lock);
- }
- pthread_mutex_lock(&group->pending_q->lock);
- add_pool_head(group->pending_q,task);
- pthread_mutex_unlock(&group->pending_q->lock);
-//  pthread_mutex_unlock(&global_lock);
-}
-
-void print_id(void *args){
-  task_t *me = (task_t*) args ;
-  printf("%d ",me->task_id);
-}
 
 void print_dependecies(task_t *task){
   printf("%d ->( ",task->task_id);
@@ -267,21 +228,95 @@ void remove_dependency(void *removed, void *dependent){
   return ;
 }
 
+
+#endif
+
+
+void push_task(task_t *task, char *name){
+  group_t *group;
+  pool_t *temp;
+//   pthread_mutex_lock(&global_lock);
+  // Here I am pushing the task into the correct q
+  
+  #ifdef DEPENDENCIES 
+  exec_on_elem_targs(pending_tasks,dependent,task);
+  exec_on_elem_targs(sig_ready_tasks,dependent,task);
+  exec_on_elem_targs(non_sig_ready_tasks,dependent,task);
+  #endif
+  
+  if(name == NULL){
+    pthread_mutex_lock(&pending_tasks->lock);
+    add_pool_head(pending_tasks,task);
+    pthread_mutex_unlock(&pending_tasks->lock);
+    return;
+  }
+  group = create_group(name);
+  task->my_group = group;
+  if(task->significance == 1)
+    group->total_sig_tasks++;
+  if(task->significance == 0)
+    group->total_non_sig_tasks++;
+  
+  group->pending_num++;
+  
+ if(task->significance == 0)
+  temp= non_sig_ready_tasks;
+ else
+  temp= sig_ready_tasks;
+  
+ #ifdef DEPENDENCIES 
+ if(task->dependencies == 0){
+   pthread_mutex_lock(&temp->lock);
+   add_pool_tail(temp,task);
+   pthread_mutex_unlock(&temp->lock);
+ }
+ else{
+   pthread_mutex_lock(&pending_tasks->lock);
+   add_pool_head(pending_tasks,task); // I am pushing it into the pending q. 
+   pthread_mutex_unlock(&pending_tasks->lock);
+ }
+#else
+  pthread_mutex_lock(&temp->lock);
+  add_pool_tail(temp,task);
+  pthread_mutex_unlock(&temp->lock);
+#endif
+
+  
+ pthread_mutex_lock(&group->pending_q->lock);
+ add_pool_head(group->pending_q,task);
+ pthread_mutex_unlock(&group->pending_q->lock);
+#ifdef DEBUG
+ printf("Pushing Task %s%d\n",name,task->task_id);
+#endif
+//  pthread_mutex_unlock(&global_lock);
+}
+
+
 void finished_task(task_t* task){
     task_t *elem;
-    
+    #ifdef DEBUG
+    printf("Finished Task %s%d\n",task->my_group->name,task->task_id);
+    #endif
     pthread_mutex_lock(&task->my_group->executing_q->lock);
     elem = delete_element(task->my_group->executing_q,cmp_tasks,task);
      if(!elem)
        printf("Something went wrong\n");
-    add_pool_head(task->my_group->finished_q, task);
+    // Here I am pushing tasks in the head. 
+    // When re-executing the entire group 
+    // I will need to move the elemets from the tail 
+    // of the finished_q to the head of the pending_q.
+    add_pool_head(task->my_group->finished_q, task); 
+    
     task->my_group->executing_num--;
     if(task->significance == 0)
       task->my_group->finished_non_sig_num++;
     else
       task->my_group->finished_sig_num++;
     
-    exec_on_elem_targs(task->dependent_tasks,remove_dependency,task);
+    // Lets move pending_tasks to the ready q 
+#ifdef DEPENDENCIES
+    exec_on_elem_targs(task->dependent_tasks,remove_dependency,task); 
+#endif
     pthread_mutex_unlock(&task->my_group->executing_q->lock);
     
     explicit_sync(task->my_group);

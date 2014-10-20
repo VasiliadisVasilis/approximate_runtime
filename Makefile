@@ -1,17 +1,21 @@
 CC=gcc
+AR=ar
 CFLAGS=-c -Wall -g
 LDFLAGS= -lpthread  -lrt -fPIC
 SOURCES=list.c group.c task.c coordinator.c  accelerator.c
 OBJECTS=$(SOURCES:.c=.o)
-EXECUTABLE=librtsrel.so
+EXECUTABLE=librtsrel.a
 
 all: $(SOURCES) $(EXECUTABLE)
 	
 $(EXECUTABLE): $(OBJECTS) 
-	$(CC) -shared $(OBJECTS) -o $@ $(LDFLAGS) 
+	$(AR)  rcs $(EXECUTABLE) $(OBJECTS)
 
 .c.o:
-	$(CC) $(LDFLAGS) $(CFLAGS) $< -o $@
+	$(CC) $(LDFLAGS) $(CFLAGS) $(FLAGS)  $< -o $@
 	
 clean:
 	rm -rf *.o $(EXECUTABLE)
+	
+help:
+	echo "make -FLAGS=\"-DDEPENDENCIES\" to compile with dependencies or if you want them disable just write make"

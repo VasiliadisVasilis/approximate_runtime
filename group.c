@@ -122,23 +122,35 @@ int wait_group(char *group, int (*func) (void *),  void * args , unsigned int ty
   
   pthread_mutex_lock(&my_group->lock);
   if (type & SYNC_RATIO){
+#ifdef DEBUG
     printf("Calculating my ratio : ");
+#endif    
     temp = calculate_ratio(my_group);
+#ifdef DEBUG
     printf("%f executing num %d\n", ratio,my_group->executing_num);
+#endif
     if(temp >= ratio){
       if(my_group->executing_num == 0 && my_group->total_sig_tasks == my_group->finished_sig_num){
 	my_group->schedule = 0;
+#ifdef DEBUG
 	printf("I am going to execute sanity funct\n");
+#endif
 	my_group->result = exec_sanity(my_group);
 	my_group->executed++;
 	pthread_mutex_unlock(&my_group->lock);
 	return 1;
       }
-    }else{
+    }
+#ifdef DEBUG
+    else{
       printf("Number of pending tasks %d\n",my_group->finished_sig_num);
     }
+#endif
   }
-
+#ifdef DEBUG
+  else
+    printf("Moving on\n");
+#endif
   if( (type&SYNC_TIME) ){
       clock_gettime(CLOCK_REALTIME, &watchdog);
       secs = watchdog.tv_sec + time_ms/1000;
@@ -157,10 +169,14 @@ int wait_group(char *group, int (*func) (void *),  void * args , unsigned int ty
     do {
       ret =pthread_cond_timedwait(&my_group->condition, &my_group->lock, &watchdog);
       if (ret == ETIMEDOUT) {
+#ifdef DEBUG
 	printf("Watchdog timer went off\n");
+#endif
 	if(my_group->finished_sig_num != my_group->total_sig_tasks){
 	  my_group->ratio = 0.0;
+#ifdef DEBUG
 	  printf("Shall wait for all significant tasks\n");
+#endif
 	  pthread_cond_wait(&my_group->condition, &my_group->lock);
 	  break;
 	}
@@ -178,14 +194,27 @@ int wait_group(char *group, int (*func) (void *),  void * args , unsigned int ty
 	  my_group->result = exec_sanity(my_group);
 	  my_group->executed++;
 	}
-      } else if (ret == 0) {
+      } 
+#ifdef DEBUG
+      else if (ret == 0) {
 	printf("ratio of tasks achieved\n");
       }
+#endif
     }while (ret == EINTR); 
   }
   else if(type&SYNC_ALL){
-    if(my_group->finished_sig_num != my_group->total_sig_tasks)
+#ifdef DEBUG
+    printf(" I am waiting for ALL tasks\n");
+#endif
+    if(my_group->finished_sig_num != my_group->total_sig_tasks){
+#ifdef DEBUG
+      printf("Locking in conditional wait\n");
+#endif
       pthread_cond_wait(&my_group->condition, &my_group->lock);
+#ifdef DEBUG
+      printf("Main application just woke up\n");
+#endif
+    }
     else{
       if(my_group->executing_num != 0){
 	if(!my_group->terminated){
@@ -203,6 +232,7 @@ int wait_group(char *group, int (*func) (void *),  void * args , unsigned int ty
   }
   else 
     pthread_cond_wait(&my_group->condition, &my_group->lock);
+  
   pthread_mutex_unlock(&my_group->lock);
   
   return 1; 
@@ -223,6 +253,7 @@ int exec_sanity(group_t *group){
   int id = whoami();
   volatile int flag = 0;
   volatile int result =0;
+  
   if (id == -1 ){
     printf("I am main application\n");
   }else
@@ -240,52 +271,83 @@ int exec_sanity(group_t *group){
 
 
 
-
 void explicit_sync(group_t *curr_group){
   float ratio;
   pthread_mutex_lock(&curr_group->lock);
+  // Check if I have a pending barrier.
   if(!curr_group->locked){
     pthread_mutex_unlock(&curr_group->lock);
+    // If not just return.
     return ;
   }
  
-  
+  // check if the current group has executed all the significant tasks
   if ( curr_group->finished_sig_num == curr_group->total_sig_tasks){
     ratio = calculate_ratio(curr_group);
+#ifdef DEBUG
     printf("Ratio is %f\n",ratio);
+#endif
     if(ratio < curr_group ->ratio ){
       pthread_mutex_unlock(&curr_group->lock);
       return ;
     }
   }else{
+#ifdef DEBUG
+    printf("Finished %d --- Total %d\n",curr_group->finished_sig_num,curr_group->total_sig_tasks);
+#endif
     pthread_mutex_unlock(&curr_group->lock);
     return;
   }
 
+  // I am here only if I need to wake up the main application from 
+  // the barrier and all requested ratios are met.
+  
+  // I am stopping to scheduling tasks from this group.
   curr_group->schedule = 0;
 
-  
+  // I am forcing termination of tasks of this group.
+#ifdef DEBUG
+  printf("Moving Here\n");
+#endif
   if(curr_group->executing_num != 0){
+#ifdef DEBUG    
+    printf("Tasks are still being executed\n");
+#endif
     if(!curr_group->terminated){
        pthread_mutex_lock(&curr_group->executing_q->lock);
        exec_on_elem(curr_group->executing_q,force_termination); 
        pthread_mutex_unlock(&curr_group->executing_q->lock);
        curr_group->terminated = 1;
        pthread_mutex_unlock(&curr_group->lock);
+       // I am returning because at this point the terminated tasks are going to check again whether 
+       // to continute execution of this group or not.
        return;
     }
   }
 
+  
+  // I have no idea why I have this again. I am keeping it 
+  //in a case of a weird bug
   if (curr_group->executing_num !=0){
     pthread_mutex_unlock(&curr_group->lock);
     return;
   }
+  
+#warning Here i need to implement possible group re-execution. I think it will be farely easy
+
   curr_group->result = exec_sanity(curr_group);
   curr_group->executed++;
-
+#ifdef DEBUG
+  printf("Returned from sanity function\n");
+#endif  
   curr_group ->locked = 0;
+  // wake up the main application
   pthread_cond_signal(&curr_group->condition);
+  //release mutex of the thread.
   pthread_mutex_unlock(&curr_group->lock);
+#ifdef DEBUG
+  printf("Waking up main application\n");
+#endif
   return;
   
 }

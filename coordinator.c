@@ -35,7 +35,6 @@ void print_trace(int nsig)
   
   size = backtrace(array, 32);
   strings = backtrace_symbols(array, size);
-  
   for (cnt=0; cnt < size; ++cnt) {
     fprintf(stderr, "%s\n", strings[cnt]);
   }
@@ -43,7 +42,6 @@ void print_trace(int nsig)
 }
 
 void my_action(int sig, siginfo_t* siginfo, void *context){
-  printf("IN HERE\n");
   print_trace(sig);
   exit(0);
 }
@@ -99,16 +97,39 @@ void check_sync(){
 
 void init_system(unsigned int reliable_workers , unsigned int nonrel_workers){
   
-  pending_tasks = create_pool();
-  sig_ready_tasks = create_pool();
-  non_sig_ready_tasks = create_pool();
-  executing_tasks = create_pool();
-  finished_tasks = create_pool();
-  total_workers = reliable_workers + nonrel_workers;
+  
+  /* Create the corresponing pulls to store the task descriptors */
   int i;
+  total_workers = reliable_workers + nonrel_workers;
+  if(total_workers == 0){
+    printf("Cannot request 0 workers\n Aborting....\n");
+    exit(0);
+  }
+  
+  
+  pending_tasks = create_pool();
+  
+  //Store here significant tasks with 
+  //unmet dependencies or tasks waiting for resources.
+  sig_ready_tasks = create_pool(); 
+  
+  // Store here non - significant tasks with 
+  //unmet dependencies or tasks waiting for resources.
+  non_sig_ready_tasks = create_pool(); 
+  //Tasks which are executed at the moment.  
+  executing_tasks = create_pool();
+  // Tasks finished their execution. I store them in 
+  //a queue so that we can re-execute the entire group
+  // if requested.
+  finished_tasks = create_pool();
+  
+
+  
   struct sigaction act;
   act.sa_sigaction = my_action;
   act.sa_flags = SA_SIGINFO;
+  
+  // Creating a signal handler to catch fault related signals
   
   if ( (sigaction(SIGILL,&act,NULL)<0)||
     (sigaction(SIGFPE,&act,NULL)<0)||
@@ -118,17 +139,18 @@ void init_system(unsigned int reliable_workers , unsigned int nonrel_workers){
     (sigaction(SIGUSR2,&act,NULL)<0)||
     (sigaction(SIGSEGV,&act,NULL)<0)||
     (sigaction(SIGSYS,&act,NULL)<0) ) {
-    perror("Could not assign signal handlers\n");
-  exit(0);
+      perror("Could not assign signal handlers\n");
+      exit(0);
     }
   
-  if(total_workers == 0){
-    printf("Cannot request 0 workers\n Aborting....\n");
-    exit(0);
-  }
+  
+  
   my_threads = (info*) malloc (sizeof(info)*total_workers);
+  
   assigned_jobs = (task_t**) malloc ( sizeof(task_t*) * total_workers);
   
+  
+  // Initialize runtime information.
   for( i = 0 ; i < total_workers ; i++){
       assigned_jobs[i] = NULL;
       pthread_cond_init(&my_threads[i].cond,NULL);
@@ -144,8 +166,7 @@ void init_system(unsigned int reliable_workers , unsigned int nonrel_workers){
       if( i > reliable_workers)
 	my_threads[i].reliable = 0;
       else
-	my_threads[i].reliable = 1;
-      
+	my_threads[i].reliable = 1;  
       assigned_jobs[i] = NULL;
       pthread_create(&(my_threads[i].my_id), &(my_threads[i].attributes), init_acc, &my_threads[i]);
   }

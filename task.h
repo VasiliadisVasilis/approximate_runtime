@@ -33,7 +33,7 @@ typedef struct tasks{
   void* sanity_args;
   
   
-  unsigned int dependencies;
+
   unsigned int redo;
   unsigned int executed_times;
   
@@ -49,12 +49,12 @@ typedef struct tasks{
   unsigned int num_out;
   d_t *outputs;
   
+#ifdef DEPENDENCIES  
+  unsigned int dependencies;
   pool_t *depend_on;
   pool_t *dependent_tasks;
-  
+#endif  
   group_t *my_group;
-  
-  
   pthread_mutex_t lock;
 }task_t;
 
@@ -64,11 +64,13 @@ typedef struct tasks{
 task_t* new_task(void (*exec)(void *), void *args, unsigned int size_args ,int (*san)(void *, void *),
 		  void *san_args, unsigned int san_size_args , unsigned char sig, unsigned int redo);
 
+#ifdef DEPENDENCIES  
 void define_in_dependencies(task_t* task, int number, ...); 
-
 void define_out_dependencies(task_t* task, int number, ...);
-void push_task(task_t* task, char *group);
 void print_dependecies(task_t *task);
+#endif
+
+void push_task(task_t* task, char *group);
 void finished_task(task_t* task);
 void move_q(task_t *task);
 

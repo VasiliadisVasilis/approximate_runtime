@@ -1,5 +1,5 @@
-CFLAGS=-g -pthread -Wall -lm -O3
-LDFLAGS=-lrtsrel -lm
+CFLAGS=-g -pthread -Wall -lm -O3 -DDEBUG
+LDFLAGS=-lrtsrel -lm -lrt
 LIB=..
 INCLUDE=-I../include/
 
@@ -8,6 +8,7 @@ PROG=test1.bin taylor.bin
 all: ${PROG}
 
 ${PROG}: test1.c taylor.c
+	make -C ../
 	gcc ${CFLAGS} -L${LIB} ${INCLUDE} taylor.c ${LDFLAGS} -o taylor.bin
 	gcc ${CFLAGS} -L${LIB} ${INCLUDE} test1.c ${LDFLAGS} -o tes1.bin	
 	gcc ${CFLAGS} -L${LIB} ${INCLUDE} dependence.c ${LDFLAGS} -o dependence.bin

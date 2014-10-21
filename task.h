@@ -1,6 +1,7 @@
 #ifndef __TASK__
 #define __TASK__
 
+
 #include "list.h"
 #include "group.h"
 
@@ -70,6 +71,7 @@ void define_out_dependencies(task_t* task, int number, ...);
 void print_dependecies(task_t *task);
 #endif
 
+void actual_push(void *_task);
 void push_task(task_t* task, char *group);
 void finished_task(task_t* task);
 void move_q(task_t *task);

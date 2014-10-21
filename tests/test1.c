@@ -62,7 +62,7 @@ int main(){
    char sanity[10][10];
    struct timespec  tv1, tv2;
 #warning the init_system function must be added to the report
-   init_system(8,2);
+   init_system(2,2);
    clock_gettime(CLOCK_MONOTONIC_RAW, &tv1);
    for ( i = 0 ; i < 10 ; i++){
      sprintf(sanity[i],"Mytask%d",i);
@@ -75,7 +75,7 @@ int main(){
 //   wait_group(char *group, int (*func) (void *),  void * args , 
 // 	     unsigned int type, unsigned int time_ms, unsigned int 
 // 	     time_us, float ratio, unsigned int redo);
-  wait_group("main_group" , big_sanity, sanity[1] , SYNC_RATIO|SYNC_TIME, 2 , 0 , 0.6f, 0) ; 
+  wait_group("main_group" , big_sanity, sanity[1] , SYNC_RATIO, 0 , 0 , 0.6f, 1) ; 
 //    monte_carlo_pi(1000000);
    clock_gettime(CLOCK_MONOTONIC_RAW, &tv2);
    

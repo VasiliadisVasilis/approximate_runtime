@@ -1,6 +1,6 @@
 CC=gcc
 AR=ar
-CFLAGS=-c -Wall -g
+CFLAGS=-c -Wall -g -DDEBUG
 LDFLAGS= -lpthread  -lrt -fPIC
 SOURCES=list.c group.c task.c coordinator.c  accelerator.c
 OBJECTS=$(SOURCES:.c=.o)

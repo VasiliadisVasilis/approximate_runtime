@@ -37,20 +37,20 @@ task_t* get_job(info *me){
       element = delete_element(ready_tasks, check_schedule, NULL);
     }
     if(element){
-      #ifdef DEBUG
+#ifdef DEBUG
       printf("Found task %s%d\n",element->my_group->name,element->task_id);
-      #endif
-	move_q(element);
-	me->execution = element->execution;
-	me->execution_args = element->execution_args;
-	me->sanity = element ->sanity_func;
-	me->sanity_args= element->sanity_args;
-	me->checked_results = 0;
-	me->redo = element->redo;
-	element->execution_thread = me->my_id;
-	element->execution_id = me->id;
-      }
-      pthread_mutex_unlock(&ready_tasks->lock);
+#endif
+      move_q(element);
+      me->execution = element->execution;
+      me->execution_args = element->execution_args;
+      me->sanity = element ->sanity_func;
+      me->sanity_args= element->sanity_args;
+      me->checked_results = 0;
+      me->redo = element->redo;
+      element->execution_thread = me->my_id;
+      element->execution_id = me->id;
+    }
+    pthread_mutex_unlock(&ready_tasks->lock);
   }while(element == NULL);
   return element;
 }
@@ -59,7 +59,7 @@ task_t* get_job(info *me){
 void* main_acc(void *args){
   info *whoami = (info*) args;
   task_t *exec_task;
-  
+
   pthread_mutex_lock(&whoami->my_mutex);
   while(1){
     exec_task=get_job(whoami);
@@ -85,5 +85,5 @@ void* main_acc(void *args){
     }
     whoami->flag = 0;
   }
-  
+
 }

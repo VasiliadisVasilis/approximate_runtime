@@ -8,6 +8,8 @@
 #define SYNC_RATIO 2
 #define SYNC_ALL 4
 
+enum sanity_return {SANITY_SUCCESS, SANITY_FAILURE};
+
 
 pthread_mutex_t group_lock;
 pool_t *groups;
@@ -23,14 +25,14 @@ typedef struct groups{
   float ratio;
   
   pool_t *pending_q;
-  unsigned int pending_num;
+  volatile unsigned int pending_num;
   
   pool_t *executing_q;
-  unsigned int executing_num;
+  volatile unsigned int executing_num;
   
   pool_t *finished_q;
-  unsigned int finished_sig_num;
-  unsigned int finished_non_sig_num;
+  volatile unsigned int finished_sig_num;
+  volatile unsigned int finished_non_sig_num;
   
   
   

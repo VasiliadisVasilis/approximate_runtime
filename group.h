@@ -8,8 +8,7 @@
 #define SYNC_RATIO 2
 #define SYNC_ALL 4
 
-enum sanity_return {SANITY_SUCCESS, SANITY_FAILURE};
-
+enum { WAIT_DONE, WAIT_PENDING };
 
 pthread_mutex_t group_lock;
 pool_t *groups;

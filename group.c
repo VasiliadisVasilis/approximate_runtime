@@ -11,8 +11,8 @@
 #include "coordinator.h"
 #include "task.h"
 #include "debug.h"
-
-enum { WAIT_DONE, WAIT_PENDING };
+/* Include this *after* task.h if you wish to access task_t fields*/
+#include "include/runtime.h" 
 
 extern info *my_threads;
 extern int debug_flag ;
@@ -93,7 +93,7 @@ group_t *create_group(char *name){
   my_group->terminated = 0;
   my_group->schedule = 1;
   my_group->executed = 0;
-  my_group->result = 0;
+  my_group->result = SANITY_SUCCESS;
   my_group->sanity_func = NULL;
 
   my_group->redo = 0;
@@ -286,22 +286,26 @@ done_exec_group:
     calculate_ratio(my_group));
   my_group->result = exec_sanity(my_group);
   my_group->executed++;
-  if ( my_group->result != SANITY_SUCCESS )
+  if (   my_group->result != SANITY_SUCCESS 
+      && my_group->executed <= my_group->redo )
   {
-    if ( my_group->executed <= my_group->redo )
-    {
-      debug("^^^^^^^ Need to re-execute (%d/%d)\n", my_group->executed, my_group->redo);
-      my_group->pending_num = 0;
-      my_group->terminated = 0;
-      my_group->locked = 1;
-      exec_on_elem(my_group->finished_q, actual_push);
-      delete_list(my_group->finished_q);
-      my_group->finished_q = create_pool();
-      my_group->schedule = 1;
-      debug("^^^^^^^ Done setting up re-execution\n");
-      goto group_redo;
-    }
+    debug("^^^^^^^ Need to re-execute (%d/%d)\n", my_group->executed, my_group->redo);
+    my_group->pending_num = 0;
+    my_group->terminated = 0;
+    my_group->locked = 1;
+    exec_on_elem(my_group->finished_q, actual_push);
+    delete_list(my_group->finished_q);
+    my_group->finished_q = create_pool();
+    my_group->schedule = 1;
+    debug("^^^^^^^ Done setting up re-execution\n");
+    goto group_redo;
   }
+  else
+  {
+    /* vasiliad: nothing to do but free the finished_q */
+    exec_on_elem(my_group->finished_q, free_args);
+  }
+
   pthread_mutex_unlock(&my_group->lock);
   return 1; 
 }

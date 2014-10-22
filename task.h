@@ -71,6 +71,7 @@ void define_out_dependencies(task_t* task, int number, ...);
 void print_dependecies(task_t *task);
 #endif
 
+void free_args(void *_task);
 void actual_push(void *_task);
 void push_task(task_t* task, char *group);
 void finished_task(task_t* task);

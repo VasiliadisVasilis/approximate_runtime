@@ -1,11 +1,15 @@
 #ifndef __SGNF_RUNTIME__
 #define __SGNF_RUNTIME__
 
-#define task_t void
+#ifndef __TASK__
+#define task_t void*
+#endif
 
 #define SYNC_TIME 1
 #define SYNC_RATIO 2
 #define SYNC_ALL 4
+
+enum sanity_return_t {SANITY_SUCCESS, SANITY_FAILURE};
 
 task_t* new_task(void (*exec)(void *), void *args, unsigned int size_args ,int (*san)(void *, void *),
 		 void *san_args, unsigned int san_size_args , unsigned char sig, unsigned int redo);

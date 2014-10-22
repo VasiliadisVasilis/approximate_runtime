@@ -3,6 +3,8 @@
 #include <assert.h>
 #include "coordinator.h"
 #include "task.h"
+/* Include this *after* task.h if you wish to access task_t fields */
+#include "include/runtime.h"
 
 extern task_t **assigned_jobs;
 
@@ -72,10 +74,10 @@ void* main_acc(void *args){
       whoami->execution(whoami->execution_args);
       whoami->flag = 2;
     }
-    whoami->return_val = 1;
+    whoami->return_val = SANITY_SUCCESS;
     if(whoami->sanity)
       whoami->return_val = whoami->sanity(whoami->execution_args,whoami->sanity_args);  
-    if ( whoami->return_val != 1  && whoami->redo >0 ){
+    if ( whoami->return_val != SANITY_SUCCESS  && whoami->redo >0 ){
       whoami->redo--;
       whoami->flag =0;
       setcontext(&(whoami->context));

@@ -33,8 +33,16 @@ task_t* new_task(void  (*exec)(void *), void *args, unsigned int size_args ,int 
   new->task_id = id++;
 
   new->execution_id = -1;
-
-  new->execution_args = args;
+  
+  if ( size_args )
+  {
+    new->execution_args = (void*) malloc(size_args);
+    memcpy(new->execution_args, args, size_args);
+  }
+  else
+  {
+    new->execution_args = NULL;
+  }
   new->execution = exec;
 
   new->sanity_func = san;
@@ -229,6 +237,15 @@ void remove_dependency(void *removed, void *dependent){
 
 
 #endif
+
+void free_args(void *_task)
+{
+  task_t *task = (task_t*) _task;
+  if ( task->execution_args )
+  {
+    free(task->execution_args);
+  }
+}
 
 void actual_push(void *_task)
 {

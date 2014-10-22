@@ -46,7 +46,15 @@ task_t* new_task(void  (*exec)(void *), void *args, unsigned int size_args ,int 
   new->execution = exec;
 
   new->sanity_func = san;
-  new->sanity_args = san_args;
+  if ( san_size_args )
+  {
+    new->sanity_args = (void*) malloc(san_size_args);
+    memcpy(new->sanity_args, san_args, san_size_args);
+  }
+  else
+  {
+    new->sanity_args = NULL;
+  }
 
   new->redo = redo;
   new->executed_times = 0;

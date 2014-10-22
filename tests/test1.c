@@ -9,7 +9,7 @@ void latency(){
   for ( i = 0 ;  i < 100 ; i++)
     for ( j = 0 ; j < 100 ; j++)
       for( k = 0 ; k < 100; k++)
-	C[i][j] = A[i][k]*B[k][j];
+        C[i][j] = A[i][k]*B[k][j];
 }
 
 
@@ -19,7 +19,7 @@ void hello(void *args){
 }
 
 int my_sanity(void *args,void *args2){
-   printf("I am sanity function %s --- %s\n",(char*)args,(char *) args2);
+  printf("I am sanity function %s --- %s\n",(char*)args,(char *) args2);
   return 1;
 }
 
@@ -38,51 +38,51 @@ void monte_carlo_pi(unsigned int Num_samples){
   int under_curve = 0;
   int count;
   double a,x,y;
-  
+
   for (count=0; count<Num_samples; count++)
   {
     x= randomFloat();
     y= randomFloat();
     a= x*x + y*y;
-    
+
     if ( a <= 1.0){
       under_curve ++;
     }
   }
-  
+
   a = ((double) under_curve / Num_samples) * 4.0;  
   printf("PI is : %2.16g \n",a);
 }
 
 
 int main(){
-   int  i,j;
-   task_t* task[10][10];
-   char name[10][10][10];
-   char sanity[10][10];
-   struct timespec  tv1, tv2;
-#warning the init_system function must be added to the report
-   init_system(2,2);
-   clock_gettime(CLOCK_MONOTONIC_RAW, &tv1);
-   for ( i = 0 ; i < 10 ; i++){
-     sprintf(sanity[i],"Mytask%d",i);
-     for ( j = 0 ; j < 10 ; j++){
-       sprintf(name[i][j],"task%d%d",i,j);
-       task[i][j] = new_task(hello,&name[i][j][0],sizeof(char)*10, my_sanity,sanity[i],10*sizeof(char),i%2,0);
-       push_task(task[i][j], "main_group");
+  int  i,j;
+  task_t* task[10][10];
+  char name[10][10][10];
+  char sanity[10][10];
+  struct timespec  tv1, tv2;
+
+  init_system(2,2);
+  clock_gettime(CLOCK_MONOTONIC_RAW, &tv1);
+  for ( i = 0 ; i < 10 ; i++){
+    sprintf(sanity[i],"Mytask%d",i);
+    for ( j = 0 ; j < 10 ; j++){
+      sprintf(name[i][j],"task%d%d",i,j);
+      task[i][j] = new_task(hello,&name[i][j][0],sizeof(char)*10, my_sanity,sanity[i],10*sizeof(char),i%2,0);
+      push_task(task[i][j], "main_group");
     }
   }
-//   wait_group(char *group, int (*func) (void *),  void * args , 
-// 	     unsigned int type, unsigned int time_ms, unsigned int 
-// 	     time_us, float ratio, unsigned int redo);
+  //   wait_group(char *group, int (*func) (void *),  void * args , 
+  // 	     unsigned int type, unsigned int time_ms, unsigned int 
+  // 	     time_us, float ratio, unsigned int redo);
   wait_group("main_group" , big_sanity, sanity[1] , SYNC_RATIO, 0 , 0 , 0.6f, 1) ; 
-//    monte_carlo_pi(1000000);
-   clock_gettime(CLOCK_MONOTONIC_RAW, &tv2);
-   
-   printf ("Total time = %10g seconds\n",
-   (double) (tv2.tv_nsec - tv1.tv_nsec) / 1000000000.0 +
-   (double) (tv2.tv_sec - tv1.tv_sec));
-   
+  //    monte_carlo_pi(1000000);
+  clock_gettime(CLOCK_MONOTONIC_RAW, &tv2);
 
-   return 1;
+  printf ("Total time = %10g seconds\n",
+      (double) (tv2.tv_nsec - tv1.tv_nsec) / 1000000000.0 +
+      (double) (tv2.tv_sec - tv1.tv_sec));
+
+
+  return 1;
 }

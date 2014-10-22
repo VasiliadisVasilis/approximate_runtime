@@ -292,10 +292,12 @@ done_exec_group:
     {
       debug("^^^^^^^ Need to re-execute (%d/%d)\n", my_group->executed, my_group->redo);
       my_group->pending_num = 0;
-      my_group->schedule = 1;
       my_group->terminated = 0;
       my_group->locked = 1;
       exec_on_elem(my_group->finished_q, actual_push);
+      delete_list(my_group->finished_q);
+      my_group->finished_q = create_pool();
+      my_group->schedule = 1;
       debug("^^^^^^^ Done setting up re-execution\n");
       goto group_redo;
     }

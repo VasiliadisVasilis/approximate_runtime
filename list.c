@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <pthread.h>
 #include <stdlib.h>
 #include <assert.h>
 #include "list.h"
@@ -7,6 +8,7 @@
 pool_t* create_pool(){
   pool_t *new =(pool_t *) malloc (sizeof(pool_t));
  assert(new);
+  pthread_mutex_init(&new->lock, NULL);
   new->head=NULL;
   new->tail=NULL;
   return new;

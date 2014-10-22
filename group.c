@@ -38,11 +38,12 @@ int cmp_group(void *args1, void *args2){
 int exec_sanity(group_t *group){
   //   printf("IN HERE\n");
   int id = whoami();
-  int result =0;
+  int result = SANITY_SUCCESS;
 
   if (id == -1 ){
     printf("I am main application\n");
-    result = group->sanity_func(group->sanity_func_args);
+    if ( group->sanity_func )
+      result = group->sanity_func(group->sanity_func_args);
   }else {
     printf("**************************I am %d\n", id);
     assert(0);
@@ -98,7 +99,8 @@ group_t *create_group(char *name){
 
   my_group->redo = 0;
   my_group->ratio = -1.0;
-
+  
+  pthread_mutex_init(&my_group->lock, NULL);
   pthread_cond_init(&my_group->condition,NULL);
 
   return my_group;
@@ -323,17 +325,11 @@ void explicit_sync(group_t *curr_group){
   // check if the current group has executed all the significant tasks
   if ( curr_group->finished_sig_num == curr_group->total_sig_tasks){
     ratio = calculate_ratio(curr_group);
-#ifdef DEBUG
-    printf("Ratio is %f\n",ratio);
-#endif
     if(ratio < curr_group ->ratio ){
       pthread_mutex_unlock(&curr_group->lock);
       return ;
     }
   }else{
-#ifdef DEBUG
-    printf("Finished %d --- Total %d\n",curr_group->finished_sig_num,curr_group->total_sig_tasks);
-#endif
     pthread_mutex_unlock(&curr_group->lock);
     return;
   }
@@ -345,9 +341,7 @@ void explicit_sync(group_t *curr_group){
   curr_group->schedule = 0;
 
   // I am forcing termination of tasks of this group.
-  debug("Moving Here\n");
   if(curr_group->executing_num != 0){
-    debug("Tasks are still being executed\n");
     if(!curr_group->terminated){
       pthread_mutex_lock(&curr_group->executing_q->lock);
       exec_on_elem(curr_group->executing_q,force_termination); 
@@ -366,7 +360,7 @@ void explicit_sync(group_t *curr_group){
 #endif
   curr_group ->locked = 0;
   // wake up the main application
-  printf("******* Waking up main\n");
+  debug("******* Waking up main\n");
   pthread_cond_signal(&curr_group->condition);
   //release mutex of the thread.
   pthread_mutex_unlock(&curr_group->lock);

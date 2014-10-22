@@ -149,7 +149,6 @@ void init_system(unsigned int reliable_workers , unsigned int nonrel_workers){
 
   assigned_jobs = (task_t**) malloc ( sizeof(task_t*) * total_workers);
 
-
   // Initialize runtime information.
   for( i = 0 ; i < total_workers ; i++){
     assigned_jobs[i] = NULL;
@@ -163,7 +162,7 @@ void init_system(unsigned int reliable_workers , unsigned int nonrel_workers){
     my_threads[i].execution_args = NULL;
     my_threads[i].work = 0;
     my_threads[i].checked_results = 1;
-    if( i > reliable_workers)
+    if( i >= reliable_workers)
       my_threads[i].reliable = 0;
     else
       my_threads[i].reliable = 1;  

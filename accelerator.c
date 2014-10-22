@@ -29,19 +29,21 @@ int check_schedule(void *task, void *dont_care){
 task_t* get_job(info *me){
   task_t *element = NULL;
   pool_t *ready_tasks ;
+
   if( me->reliable == 0 )
+  {
     ready_tasks = non_sig_ready_tasks;
+  }
   else
+  {
     ready_tasks = sig_ready_tasks;
+  }
   do{
     pthread_mutex_lock(&ready_tasks->lock);
     if(ready_tasks->head){
       element = delete_element(ready_tasks, check_schedule, NULL);
     }
     if(element){
-#ifdef DEBUG
-      printf("Found task %s%d\n",element->my_group->name,element->task_id);
-#endif
       move_q(element);
       me->execution = element->execution;
       me->execution_args = element->execution_args;

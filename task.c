@@ -3,6 +3,7 @@
 #include <assert.h>
 #include <pthread.h>
 #include <stdarg.h>
+#include <string.h>
 #include "task.h"
 #include "debug.h"
 
@@ -307,9 +308,9 @@ void actual_push(void *_task)
 void push_task(task_t *task, char *name){
   group_t *group;
   pool_t *temp;
+
   //   pthread_mutex_lock(&global_lock);
   // Here I am pushing the task into the correct q
-
 #ifdef DEPENDENCIES 
   exec_on_elem_targs(pending_tasks,dependent,task);
   exec_on_elem_targs(sig_ready_tasks,dependent,task);
@@ -332,9 +333,13 @@ void push_task(task_t *task, char *name){
   group->pending_num++;
 
   if(task->significance == 0)
+  {
     temp= non_sig_ready_tasks;
+  }
   else
+  {
     temp= sig_ready_tasks;
+  }
 
 #ifdef DEPENDENCIES 
   if(task->dependencies == 0){
@@ -364,9 +369,7 @@ void push_task(task_t *task, char *name){
 
 void finished_task(task_t* task){
   task_t *elem;
-#ifdef DEBUG
-  printf("Finished Task %s%d\n",task->my_group->name,task->task_id);
-#endif
+
   pthread_mutex_lock(&task->my_group->executing_q->lock);
   elem = delete_element(task->my_group->executing_q,cmp_tasks,task);
   if(!elem)
@@ -408,18 +411,4 @@ void move_q(task_t *task){
   pthread_mutex_unlock(&task->my_group->executing_q->lock);
 
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 

@@ -142,9 +142,7 @@ void spawn_dct_task(long r, long c, long i, long j, uint8_t significance)
 
   task = new_task(dct_task, &args, sizeof(args), dct_trc, NULL, 0,
         significance, 0);
-  printf("new_task()\n");
   push_task(task, "dct");
-  printf("push_task()\n");
 }
 
 /*
@@ -163,19 +161,18 @@ void DCT(unsigned char pic[], double dct[], double COS[], double C[]) {
     for (k=0; k < WIDTH/STEP_C; k++)
     {
       c = k*STEP_C;
-      printf("%ld\n", k);
-      spawn_dct_task(r, c, 0, 0, 110 >= RATIO*100);
-      spawn_dct_task(r, c, 0, 2, 90  >= RATIO*100);
-      spawn_dct_task(r, c, 0, 4, 80  >= RATIO*100);
-      spawn_dct_task(r, c, 0, 6, 70  >= RATIO*100);
+      spawn_dct_task(r, c, 0, 0, SIGNIFICANT );
+      spawn_dct_task(r, c, 0, 2, 60  >= RATIO*100);
+      spawn_dct_task(r, c, 0, 4, 50  >= RATIO*100);
+      spawn_dct_task(r, c, 0, 6, 40  >= RATIO*100);
 /*      spawn_dct_task(r, c, 2, 0, 90);
       spawn_dct_task(r, c, 2, 2, 85);
       spawn_dct_task(r, c, 2, 4, 75);
       spawn_dct_task(r, c, 2, 6, 60);*/
-      spawn_dct_task(r, c, 4, 0, 90  >= RATIO*100);
-      spawn_dct_task(r, c, 4, 2, 80  >= RATIO*100);
-      spawn_dct_task(r, c, 4, 4, 70  >= RATIO*100);
-      spawn_dct_task(r, c, 4, 6, 60  >= RATIO*100);
+      spawn_dct_task(r, c, 4, 0, 60  >= RATIO*100);
+      spawn_dct_task(r, c, 4, 2, 50  >= RATIO*100);
+      spawn_dct_task(r, c, 4, 4, 40  >= RATIO*100);
+      spawn_dct_task(r, c, 4, 6, 30  >= RATIO*100);
 /*      spawn_dct_task(r, c, 6, 0, 70);
       spawn_dct_task(r, c, 6, 2, 60);
       spawn_dct_task(r, c, 6, 4, 50);

@@ -7,7 +7,7 @@
 
 pool_t* create_pool(){
   pool_t *new =(pool_t *) malloc (sizeof(pool_t));
- assert(new);
+  assert(new);
   pthread_mutex_init(&new->lock, NULL);
   new->head=NULL;
   new->tail=NULL;
@@ -37,12 +37,12 @@ list_t* add_pool_head(pool_t *pool, void *element){
     new->next = pool->head;
     pool->head=new;
   }
- 
+
   return new;
 }
 
 list_t* add_pool_tail(pool_t *pool, void *element){
- 
+
   list_t *new = (list_t *) malloc(sizeof(list_t));
   assert(new);
   if(!pool->tail){
@@ -50,44 +50,44 @@ list_t* add_pool_tail(pool_t *pool, void *element){
     pool->tail=new;
     new->next = NULL;
     new->args = element;
-    
+
   }else{
     new->args = element;
     pool->tail->next = new;
     pool->tail = new;
   }
- 
+
   return new;
 }
 
 
 void* remove_element(pool_t *pool, list_t *node, list_t *prev){
-  
+
   void *ptr;
   if (prev == NULL && node != pool->head)
     assert(0);
   if(node == pool->head ){
-      pool->head = node->next;
-      if (node == pool->tail)
-	pool->head=pool->tail = NULL;
-      node->next = NULL;
-      ptr = node->args;
+    pool->head = node->next;
+    if (node == pool->tail)
+      pool->head=pool->tail = NULL;
+    node->next = NULL;
+    ptr = node->args;
   }
   else if(node == pool->tail){
-      pool->tail = prev ;
-      prev->next = NULL;
-      ptr = node->args;
+    pool->tail = prev ;
+    prev->next = NULL;
+    ptr = node->args;
   }
   else{
     prev->next = node->next;
     node->next = NULL;
     ptr = node->args;
   }
-  
+
   free(node);
- 
+
   return ptr;
-  
+
 }
 
 void* delete_element(pool_t *pool, int (*cmp) (void *,void *),void *args ){
@@ -102,42 +102,42 @@ void* delete_element(pool_t *pool, int (*cmp) (void *,void *),void *args ){
 
 list_t* search(pool_t *pool, int (*cmp) (void *,void *),void *args){
   list_t *node;
- 
+
   for(node = pool->head; node!=NULL && cmp(node->args,args)==0 ; node= node->next);
-   
+
   if(node)  
     return node;
   return NULL;
-  
+
 }
 
 
 void exec_on_elem(pool_t *pool, void (*exec)(void*)){
   list_t *l;
- 
+
   for(l = pool->head ; l != NULL; l = l->next)
     exec(l->args);
- 
+
 }
 
 void exec_on_elem_targs(pool_t *pool, void (*exec)(void*, void*), void *args){
   list_t *l;
- 
+
   for(l = pool->head ; l != NULL; l = l->next)
     exec(args,l->args);
- 
+
 }
 
 
 void delete_list(pool_t *pool){
   list_t *l;
- 
+
   while(pool && pool->head!=pool->tail){
     l = pool->head;
     pool->head = pool->head->next;
     free(l);
   }
- 
+
   free(pool->head);
   return;
 }

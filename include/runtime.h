@@ -10,6 +10,7 @@
 #define SYNC_ALL 4
 
 enum sanity_return_t {SANITY_SUCCESS, SANITY_FAILURE};
+enum significance_value_t {SIGNIFICANT_NOT, SIGNIFICANT };
 
 task_t* new_task(void (*exec)(void *), void *args, unsigned int size_args ,int (*san)(void *, void *),
 		 void *san_args, unsigned int san_size_args , unsigned char sig, unsigned int redo);

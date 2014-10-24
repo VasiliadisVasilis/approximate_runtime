@@ -10,7 +10,7 @@ all: ${PROG}
 ${PROG}: test1.c taylor.c
 	make -C ../
 	gcc ${CFLAGS} -L${LIB} ${INCLUDE} taylor.c ${LDFLAGS} -o taylor.bin
-	gcc ${CFLAGS} -L${LIB} ${INCLUDE} test1.c ${LDFLAGS} -o tes1.bin	
+	gcc ${CFLAGS} -L${LIB} ${INCLUDE} test1.c ${LDFLAGS} -o test1.bin	
 	gcc ${CFLAGS} -L${LIB} ${INCLUDE} dependence.c ${LDFLAGS} -o dependence.bin
 # %.bin: %.c ../libadamsmp.a
 # 	gcc ${CFLAGS} -L${ADAMLIB} ${INCLUDE} $< -o $@ ${LDFLAGS}

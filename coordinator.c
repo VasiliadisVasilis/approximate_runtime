@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <execinfo.h>
 #include "coordinator.h"
 #include "list.h"
 #include "task.h"
@@ -109,20 +110,21 @@ void init_system(unsigned int reliable_workers , unsigned int nonrel_workers){
 
   pending_tasks = create_pool();
 
-  //Store here significant tasks with 
-  //unmet dependencies or tasks waiting for resources.
+  // Store here significant tasks with 
+  // unmet dependencies or tasks waiting for resources.
   sig_ready_tasks = create_pool(); 
 
   // Store here non - significant tasks with 
-  //unmet dependencies or tasks waiting for resources.
+  // unmet dependencies or tasks waiting for resources.
   non_sig_ready_tasks = create_pool(); 
-  //Tasks which are executed at the moment.  
+
+  // Tasks which are executed at the moment.  
   executing_tasks = create_pool();
+
   // Tasks finished their execution. I store them in 
-  //a queue so that we can re-execute the entire group
+  // a queue so that we can re-execute the entire group
   // if requested.
   finished_tasks = create_pool();
-
 
 
   struct sigaction act;
@@ -130,7 +132,6 @@ void init_system(unsigned int reliable_workers , unsigned int nonrel_workers){
   act.sa_flags = SA_SIGINFO;
 
   // Creating a signal handler to catch fault related signals
-
   if ( (sigaction(SIGILL,&act,NULL)<0)||
       (sigaction(SIGFPE,&act,NULL)<0)||
       (sigaction(SIGPIPE,&act,NULL)<0)||
@@ -144,13 +145,13 @@ void init_system(unsigned int reliable_workers , unsigned int nonrel_workers){
   }
 
 
-
   my_threads = (info*) malloc (sizeof(info)*total_workers);
 
   assigned_jobs = (task_t**) malloc ( sizeof(task_t*) * total_workers);
 
   // Initialize runtime information.
   for( i = 0 ; i < total_workers ; i++){
+
     assigned_jobs[i] = NULL;
     pthread_cond_init(&my_threads[i].cond,NULL);
     pthread_attr_init(&my_threads[i].attributes);
@@ -162,11 +163,16 @@ void init_system(unsigned int reliable_workers , unsigned int nonrel_workers){
     my_threads[i].execution_args = NULL;
     my_threads[i].work = 0;
     my_threads[i].checked_results = 1;
+
     if( i >= reliable_workers)
       my_threads[i].reliable = 0;
     else
       my_threads[i].reliable = 1;  
+
     assigned_jobs[i] = NULL;
     pthread_create(&(my_threads[i].my_id), &(my_threads[i].attributes), init_acc, &my_threads[i]);
+
   }
+
+
 }

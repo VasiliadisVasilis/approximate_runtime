@@ -21,5 +21,5 @@ ${PROG}: test1.c taylor.c
 # taylor_series_bddt.c: taylor_series_scoop.c ../libadamsmp.a
 # 	scoop ${INCLUDE} $< --out-name=taylor_series_bddt --verbose --out=log --tpcIncludePath=../include --runtime=bddt --debugSCOOP
 # 
-# clean:
-# 	rm -f ${PROG} taylor_series_bddt.c
+clean:
+	rm -f ${PROG} #taylor_series_bddt.c

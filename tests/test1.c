@@ -64,7 +64,7 @@ int main(){
 
   init_system(2,2);
   clock_gettime(CLOCK_MONOTONIC_RAW, &tv1);
-  for ( i = 0 ; i < 10 ; i++){
+  for ( i = 0 ; i < 1; i++){
     sprintf(sanity[i],"Mytask%d",i);
     for ( j = 0 ; j < 10 ; j++){
       sprintf(name[i][j],"task%d%d",i,j);

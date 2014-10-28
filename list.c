@@ -6,7 +6,7 @@
 
 
 pool_t* create_pool(){
-  pool_t *new =(pool_t *) malloc (sizeof(pool_t));
+  pool_t *new =(pool_t *) calloc(1, sizeof(pool_t));
   assert(new);
   pthread_mutex_init(&new->lock, NULL);
   new->head=NULL;
@@ -15,7 +15,7 @@ pool_t* create_pool(){
 }
 
 list_t * create_list(){
-  list_t *new =(list_t *) malloc (sizeof(list_t));
+  list_t *new =(list_t *) calloc(1, sizeof(list_t));
   assert(new);
   new->args=NULL;
   new->next=NULL;
@@ -24,7 +24,7 @@ list_t * create_list(){
 
 list_t* add_pool_head(pool_t *pool, void *element){
 
-  list_t *new = (list_t *) malloc(sizeof(list_t));
+  list_t *new = (list_t *) calloc(1, sizeof(list_t));
   assert(new);
   if(!pool->head){
     pool->head = new;
@@ -43,7 +43,7 @@ list_t* add_pool_head(pool_t *pool, void *element){
 
 list_t* add_pool_tail(pool_t *pool, void *element){
 
-  list_t *new = (list_t *) malloc(sizeof(list_t));
+  list_t *new = (list_t *)calloc(1, sizeof(list_t));
   assert(new);
   if(!pool->tail){
     pool->head = new;
@@ -92,9 +92,14 @@ void* remove_element(pool_t *pool, list_t *node, list_t *prev){
 
 void* delete_element(pool_t *pool, int (*cmp) (void *,void *),void *args ){
   list_t *l,*l1;
-  for(l=pool->head , l1 = NULL ; l!=NULL ;  l1=l , l=l->next){
+
+  l = pool->head;
+  l1 = NULL;
+
+  for(; l!=NULL ; l=l->next){
     if(cmp(l->args,args))
       return remove_element(pool, l, l1);
+    l1 = l;
   }
   return NULL;
 }
@@ -126,6 +131,19 @@ void exec_on_elem_targs(pool_t *pool, void (*exec)(void*, void*), void *args){
   for(l = pool->head ; l != NULL; l = l->next)
     exec(args,l->args);
 
+}
+
+void empty_pool(pool_t *pool)
+{
+  list_t *l;
+
+  while(pool && pool->head!=pool->tail){
+    l = pool->head;
+    pool->head = pool->head->next;
+    free(l);
+  }
+
+  pool->head = pool->tail = NULL;
 }
 
 

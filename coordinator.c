@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "coordinator.h"
 #include "list.h"
 #include "task.h"
@@ -69,7 +70,8 @@ void action(int sig, siginfo_t* siginfo, void *context){
 void* init_acc(void *args){
 
   struct sigaction act;
-
+  
+  memset(&act, 0, sizeof(act));
   act.sa_sigaction = action;
   act.sa_flags = SA_SIGINFO;
 
@@ -126,6 +128,7 @@ void init_system(unsigned int reliable_workers , unsigned int nonrel_workers){
 
 
   struct sigaction act;
+  memset(&act, 0, sizeof(act));
   act.sa_sigaction = my_action;
   act.sa_flags = SA_SIGINFO;
 
@@ -145,9 +148,9 @@ void init_system(unsigned int reliable_workers , unsigned int nonrel_workers){
 
 
 
-  my_threads = (info*) malloc (sizeof(info)*total_workers);
+  my_threads = (info*) calloc(total_workers, sizeof(info));
 
-  assigned_jobs = (task_t**) malloc ( sizeof(task_t*) * total_workers);
+  assigned_jobs = (task_t**) calloc(total_workers, sizeof(task_t*));
 
   // Initialize runtime information.
   for( i = 0 ; i < total_workers ; i++){

@@ -29,7 +29,7 @@ int cmp_tasks(void *args1, void *args2){
 task_t* new_task(void  (*exec)(void *), void *args, unsigned int size_args ,int (*san)(void *, void *),
     void *san_args, unsigned int san_size_args , unsigned char sig, unsigned int redo){
   static int id = 0;
-  task_t *new = (task_t *) malloc (sizeof(task_t));
+  task_t *new = (task_t *) calloc(1,sizeof(task_t));
   assert(new);
 
   new->task_id = id++;
@@ -38,7 +38,7 @@ task_t* new_task(void  (*exec)(void *), void *args, unsigned int size_args ,int 
   
   if ( size_args )
   {
-    new->execution_args = (void*) malloc(size_args);
+    new->execution_args = (void*) calloc(1, size_args);
     memcpy(new->execution_args, args, size_args);
   }
   else
@@ -50,7 +50,7 @@ task_t* new_task(void  (*exec)(void *), void *args, unsigned int size_args ,int 
   new->sanity_func = san;
   if ( san_size_args )
   {
-    new->sanity_args = (void*) malloc(san_size_args);
+    new->sanity_args = (void*) calloc(1, san_size_args);
     memcpy(new->sanity_args, san_args, san_size_args);
   }
   else
@@ -94,7 +94,7 @@ void define_in_dependencies(task_t* task, int number, ...){
   if(number == 0)
     return;
 
-  task->inputs = (d_t*) malloc (sizeof(d_t)*number);
+  task->inputs = (d_t*) calloc(number, sizeof(d_t));
   assert(task->inputs);
   task->num_in = number;
 
@@ -122,7 +122,7 @@ void define_out_dependencies(task_t* task, int number, ...){
   if(number == 0)
     return;
 
-  task->outputs = (d_t*) malloc (sizeof(d_t)*number);
+  task->outputs = (d_t*) calloc(number, sizeof(d_t));
   assert(task->outputs);
   task->num_out = number;
 
@@ -377,6 +377,7 @@ void finished_task(task_t* task){
   task_t *elem;
 
   pthread_mutex_lock(&task->my_group->executing_q->lock);
+  pthread_mutex_lock(&task->my_group->finished_q->lock);
   elem = delete_element(task->my_group->executing_q,cmp_tasks,task);
   if(!elem)
     printf("Something went wrong\n");
@@ -397,6 +398,7 @@ void finished_task(task_t* task){
   exec_on_elem_targs(task->dependent_tasks,remove_dependency,task); 
 #endif
   pthread_mutex_unlock(&task->my_group->executing_q->lock);
+  pthread_mutex_unlock(&task->my_group->finished_q->lock);
 
   explicit_sync(task->my_group);
 }

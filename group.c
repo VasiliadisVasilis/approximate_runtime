@@ -59,12 +59,12 @@ group_t *create_group(char *name){
     return my_group;
   }
 
-  my_group = (group_t *) malloc (sizeof(group_t));
+  my_group = (group_t *) calloc(1, sizeof(group_t));
   assert(my_group);
   add_pool_head(groups,my_group);
 
   size_string = strlen(name) + 1;
-  my_group->name = (char*) malloc (sizeof(char) * size_string);
+  my_group->name = (char*) calloc(size_string, sizeof(char));
   assert(my_group->name);
 
   strcpy(my_group->name,name);
@@ -123,18 +123,22 @@ int wait_group_ratio(group_t* group, float ratio)
 {
   float temp;
   debug("Calculating my ratio : ");
+
+  pthread_mutex_lock(&group->executing_q->lock);
   temp = calculate_ratio(group);
   debug("%f executing num %d\n", ratio,group->executing_num);
   if(temp >= ratio){
     if(group->executing_num == 0 && group->total_sig_tasks == group->finished_sig_num){
       group->schedule = 0;
       debug("I am going to execute sanity funct\n");
+      pthread_mutex_unlock(&group->executing_q->lock);
       return WAIT_DONE;
     }
   }
   else{
     debug("Number of pending tasks %d\n",group->finished_sig_num);
   }
+  pthread_mutex_unlock(&group->executing_q->lock);
   return WAIT_PENDING;
 }
 
@@ -174,6 +178,7 @@ int wait_group_time(group_t *group, unsigned int time_ms)
             exec_on_elem(group->executing_q,force_termination); 
             pthread_mutex_unlock(&group->executing_q->lock);
             group->terminated = 1;
+            #warning this might be wrong ...
             pthread_mutex_unlock(&group->lock);
           }
         }
@@ -209,6 +214,7 @@ int wait_group_all(group_t *group)
         pthread_mutex_lock(&group->executing_q->lock);
         exec_on_elem(group->executing_q,force_termination); 
         pthread_mutex_unlock(&group->executing_q->lock);
+        #warning this might be wrong
         group->terminated = 1;
         pthread_mutex_unlock(&group->lock);
       }
@@ -239,13 +245,13 @@ int wait_group(char *group, int (*func) (void *),  void * args , unsigned int ty
   }
 
   my_group = (group_t*) list->args; //get actual group
+  pthread_mutex_lock(&my_group->lock);
   my_group->sanity_func = func;
   my_group->sanity_func_args = args;
   my_group->ratio = ratio;
   my_group->redo = redo;
   my_group->locked = 1;
 
-  pthread_mutex_lock(&my_group->lock);
 group_redo:
   if (type & SYNC_RATIO)
   {
@@ -279,7 +285,7 @@ group_redo:
 done_exec_group:
 
   debug("******* Executing sanity function for %s:%f\n", my_group->name,
-      calculate_ratio(my_group));
+  calculate_ratio(my_group));
   my_group->result = exec_sanity(my_group);
   my_group->executed++;
   if (   my_group->result != SANITY_SUCCESS 
@@ -290,9 +296,10 @@ done_exec_group:
     my_group->terminated = 0;
     my_group->locked = 1;
     exec_on_elem(my_group->finished_q, actual_push);
-    delete_list(my_group->finished_q);
-    my_group->finished_q = create_pool();
+    pthread_mutex_lock(&my_group->finished_q->lock);
+    empty_pool(my_group->finished_q);
     my_group->schedule = 1;
+    pthread_mutex_unlock(&my_group->finished_q->lock);
     debug("^^^^^^^ Done setting up re-execution\n");
     goto group_redo;
   }
@@ -354,6 +361,7 @@ void explicit_sync(group_t *curr_group){
   //release mutex of the thread.
   pthread_mutex_unlock(&curr_group->lock);
   debug("Waking up main application\n");
+  fflush(stdout);
   return;
 
 }

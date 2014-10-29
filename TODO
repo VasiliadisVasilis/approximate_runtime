@@ -1,0 +1,3 @@
+fix the f*cking deadlock
+
+find a solution for library paths. Every PC has its own paths, need to find the path @ runtime (or...??)

@@ -38,28 +38,15 @@
  */
 int nvidia_runtime_init() {
 
-  /* Open /etc/OpenCL/vendors/nvidia.icd */
-  FILE * fp;
-  char *nvidia_icd = "/etc/OpenCL/vendors/nvidia.icd";  
-  char *line = NULL;
-  size_t len = 0;
-  ssize_t read;
+  /* Don't use icd now, problem with dlopen. Must know full path */
+  //char *nvidia_icd = "/etc/OpenCL/vendors/nvidia.icd";  
+  char *nvidia_library = "/usr/lib/nvidia-current/libOpenCL.so";
 
-  fp = fopen(nvidia_icd, "r");
-  if (fp == NULL)
-    return -1;
-
-  read = getline(&line, &len, fp);
-  if ( read == -1 )
-    return -1;
-
-  fclose(fp);
-    
   /* Handle for libOpenCL.so */
   void *dlhandle;
-printf("LALALAL %s\n", line);
+
   /* Try to open libOpenCL.so */
-  dlhandle = dlopen(line, RTLD_LAZY | RTLD_GLOBAL );
+  dlhandle = dlopen( nvidia_library, RTLD_LAZY | RTLD_NOW );
 
   if ( !dlhandle ) { 
 
@@ -71,7 +58,7 @@ printf("LALALAL %s\n", line);
 
     return -1;
   }
-  
+
   /***** Initialize NVIDIA OPENCL RUNTIME functions ******/
   nvidia_ocl = ( opencl_runtime_functions *) malloc ( sizeof ( opencl_runtime_functions ) );
 

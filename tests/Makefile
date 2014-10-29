@@ -1,5 +1,5 @@
 CFLAGS=-g -pthread -Wall -lOpenCL -lm -O3 -DDEBUG
-LDFLAGS=-lrtsrel -lm -lrt -ldl -L /usr/lib/nvidia-current/libnvidia-opencl.so.1
+LDFLAGS=-lrtsrel -lm -lrt -ldl 
 LIB=..
 INCLUDE=-I../include/
 

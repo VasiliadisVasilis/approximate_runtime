@@ -1,5 +1,5 @@
 CFLAGS=-g -pthread -Wall -lm -O3 -DDEBUG
-LDFLAGS=-lrtsrel -lm -lrt
+LDFLAGS=-lrtsrel -lm -lrt -ldl
 LIB=..
 INCLUDE=-I../include/
 

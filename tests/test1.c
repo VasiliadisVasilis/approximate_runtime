@@ -61,7 +61,7 @@ int main(){
   char name[10][10][10];
   char sanity[10][10];
   struct timespec  tv1, tv2;
-
+  printf("RETURNED: %d\n", nvidia_runtime_init());
   init_system(2,2);
   clock_gettime(CLOCK_MONOTONIC_RAW, &tv1);
   for ( i = 0 ; i < 10 ; i++){

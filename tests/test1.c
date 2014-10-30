@@ -14,17 +14,17 @@ void latency(){
 
 
 void hello(void *args){
-  printf("Hello %s\n",(char*) args);
+  int i;
+
+  for ( i=0; i<10000; ++i)
   latency();
 }
 
 int my_sanity(void *args,void *args2){
-  printf("I am sanity function %s --- %s\n",(char*)args,(char *) args2);
   return 1;
 }
 
 int big_sanity(void *args){
-  printf("I am big sanity function %s\n",(char*) args);
   return 1;
 }
 
@@ -57,25 +57,24 @@ void monte_carlo_pi(unsigned int Num_samples){
 
 int main(){
   int  i,j;
-  task_t* task[10][10];
+  task_t* task;
   char name[10][10][10];
   char sanity[10][10];
   struct timespec  tv1, tv2;
-  printf("RETURNED: %d\n", nvidia_runtime_init());
+
   init_system(2,2);
   clock_gettime(CLOCK_MONOTONIC_RAW, &tv1);
-  for ( i = 0 ; i < 10 ; i++){
+  for ( i = 0 ; i < 1; i++){
     sprintf(sanity[i],"Mytask%d",i);
-    for ( j = 0 ; j < 10 ; j++){
-      sprintf(name[i][j],"task%d%d",i,j);
-      task[i][j] = new_task(hello,&name[i][j][0],sizeof(char)*10, my_sanity,sanity[i],10*sizeof(char),0,0);
-      push_task(task[i][j], "main_group");
+    for ( j = 0 ; j < 10; j++){
+      task = new_task(hello,"gamiemai",sizeof(char)*10, my_sanity,"nai gamiemai",10*sizeof(char),j%2,0);
+      push_task(task, "main_group");
     }
   }
   //   wait_group(char *group, int (*func) (void *),  void * args , 
   // 	     unsigned int type, unsigned int time_ms, unsigned int 
   // 	     time_us, float ratio, unsigned int redo);
-  wait_group("main_group" , big_sanity, sanity[1] , SYNC_RATIO, 0 , 0 , 0.6f, 1) ; 
+  wait_group("main_group" , big_sanity, sanity[0] , SYNC_RATIO, 0 , 0 , 0.8f, 0) ; 
   //    monte_carlo_pi(1000000);
   clock_gettime(CLOCK_MONOTONIC_RAW, &tv2);
 

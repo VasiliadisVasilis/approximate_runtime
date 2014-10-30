@@ -1,11 +1,12 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <execinfo.h>
 #include "coordinator.h"
 #include "list.h"
 #include "task.h"
 #include "group.h"
-
+#include "debug.h"
 
 pool_t *pending_tasks;
 pool_t *sig_ready_tasks;
@@ -70,7 +71,8 @@ void action(int sig, siginfo_t* siginfo, void *context){
 void* init_acc(void *args){
 
   struct sigaction act;
-
+  
+  memset(&act, 0, sizeof(act));
   act.sa_sigaction = action;
   act.sa_flags = SA_SIGINFO;
 
@@ -96,9 +98,8 @@ void check_sync(){
   return;
 }
 
-void init_system(unsigned int reliable_workers , unsigned int nonrel_workers){
-
-
+void init_system(unsigned int reliable_workers , unsigned int nonrel_workers)
+{
   /* Create the corresponing pulls to store the task descriptors */
   int i;
   total_workers = reliable_workers + nonrel_workers;
@@ -110,28 +111,29 @@ void init_system(unsigned int reliable_workers , unsigned int nonrel_workers){
 
   pending_tasks = create_pool();
 
-  // Store here significant tasks with 
-  // unmet dependencies or tasks waiting for resources.
+  //Store here significant tasks with 
+  //unmet dependencies or tasks waiting for resources.
   sig_ready_tasks = create_pool(); 
 
   // Store here non - significant tasks with 
-  // unmet dependencies or tasks waiting for resources.
+  //unmet dependencies or tasks waiting for resources.
   non_sig_ready_tasks = create_pool(); 
-
-  // Tasks which are executed at the moment.  
+  //Tasks which are executed at the moment.  
   executing_tasks = create_pool();
-
   // Tasks finished their execution. I store them in 
-  // a queue so that we can re-execute the entire group
+  //a queue so that we can re-execute the entire group
   // if requested.
   finished_tasks = create_pool();
 
 
+
   struct sigaction act;
+  memset(&act, 0, sizeof(act));
   act.sa_sigaction = my_action;
   act.sa_flags = SA_SIGINFO;
 
   // Creating a signal handler to catch fault related signals
+
   if ( (sigaction(SIGILL,&act,NULL)<0)||
       (sigaction(SIGFPE,&act,NULL)<0)||
       (sigaction(SIGPIPE,&act,NULL)<0)||
@@ -145,13 +147,12 @@ void init_system(unsigned int reliable_workers , unsigned int nonrel_workers){
   }
 
 
-  my_threads = (info*) malloc (sizeof(info)*total_workers);
 
-  assigned_jobs = (task_t**) malloc ( sizeof(task_t*) * total_workers);
+  my_threads = (info*) calloc(total_workers, sizeof(info));
 
+  assigned_jobs = (task_t**) calloc(total_workers, sizeof(task_t*));
   // Initialize runtime information.
   for( i = 0 ; i < total_workers ; i++){
-
     assigned_jobs[i] = NULL;
     pthread_cond_init(&my_threads[i].cond,NULL);
     pthread_attr_init(&my_threads[i].attributes);
@@ -163,16 +164,12 @@ void init_system(unsigned int reliable_workers , unsigned int nonrel_workers){
     my_threads[i].execution_args = NULL;
     my_threads[i].work = 0;
     my_threads[i].checked_results = 1;
-
     if( i >= reliable_workers)
       my_threads[i].reliable = 0;
     else
       my_threads[i].reliable = 1;  
-
     assigned_jobs[i] = NULL;
     pthread_create(&(my_threads[i].my_id), &(my_threads[i].attributes), init_acc, &my_threads[i]);
-
-  }
-
+  } 
 
 }

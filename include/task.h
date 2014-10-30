@@ -33,6 +33,7 @@ typedef struct tasks{
   int (*sanity_func) (void *,void *);
   void* sanity_args;
   
+  
 
   unsigned int redo;
   unsigned int executed_times;
@@ -56,7 +57,6 @@ typedef struct tasks{
 #endif  
   group_t *my_group;
   pthread_mutex_t lock;
-
 }task_t;
 
 

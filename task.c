@@ -6,6 +6,7 @@
 #include <string.h>
 #include "task.h"
 #include "debug.h"
+#include "include/runtime.h"
 
 extern pool_t *pending_tasks;
 extern pool_t *sig_ready_tasks;
@@ -13,11 +14,12 @@ extern pool_t *non_sig_ready_tasks;
 extern pool_t *executing_tasks;
 extern pool_t *finished_tasks;
 pthread_mutex_t global_lock;
+void explicit_sync(void *args);
 
 int cmp_tasks(void *args1, void *args2){
   task_t *t1 = args1;
   task_t *t2 = args2;
-  if(t1->task_id == t2->task_id)
+  if(t1 && t2 && t1->task_id == t2->task_id)
     return 1;
   return 0;
 }
@@ -28,7 +30,7 @@ int cmp_tasks(void *args1, void *args2){
 task_t* new_task(void  (*exec)(void *), void *args, unsigned int size_args ,int (*san)(void *, void *),
     void *san_args, unsigned int san_size_args , unsigned char sig, unsigned int redo){
   static int id = 0;
-  task_t *new = (task_t *) malloc (sizeof(task_t));
+  task_t *new = (task_t *) calloc(1,sizeof(task_t));
   assert(new);
 
   new->task_id = id++;
@@ -37,7 +39,7 @@ task_t* new_task(void  (*exec)(void *), void *args, unsigned int size_args ,int 
   
   if ( size_args )
   {
-    new->execution_args = (void*) malloc(size_args);
+    new->execution_args = (void*) calloc(1, size_args);
     memcpy(new->execution_args, args, size_args);
   }
   else
@@ -49,7 +51,7 @@ task_t* new_task(void  (*exec)(void *), void *args, unsigned int size_args ,int 
   new->sanity_func = san;
   if ( san_size_args )
   {
-    new->sanity_args = (void*) malloc(san_size_args);
+    new->sanity_args = (void*) calloc(1, san_size_args);
     memcpy(new->sanity_args, san_args, san_size_args);
   }
   else
@@ -93,7 +95,7 @@ void define_in_dependencies(task_t* task, int number, ...){
   if(number == 0)
     return;
 
-  task->inputs = (d_t*) malloc (sizeof(d_t)*number);
+  task->inputs = (d_t*) calloc(number, sizeof(d_t));
   assert(task->inputs);
   task->num_in = number;
 
@@ -121,7 +123,7 @@ void define_out_dependencies(task_t* task, int number, ...){
   if(number == 0)
     return;
 
-  task->outputs = (d_t*) malloc (sizeof(d_t)*number);
+  task->outputs = (d_t*) calloc(number, sizeof(d_t));
   assert(task->outputs);
   task->num_out = number;
 
@@ -261,7 +263,10 @@ void actual_push(void *_task)
   task_t *task = (task_t*) _task;
   group_t *group = task->my_group;
   pool_t *temp;
-  
+
+  if ( task->significance == SIGNIFICANT )
+    return;
+
   task->executed_times = 0;
 #ifdef DEPENDENCIES 
   exec_on_elem_targs(pending_tasks,dependent,task);
@@ -302,7 +307,8 @@ void actual_push(void *_task)
   pthread_mutex_lock(&group->pending_q->lock);
   add_pool_tail(group->pending_q,task);
   pthread_mutex_unlock(&group->pending_q->lock);
-  debug("Pushing Task %s%d\n",group->name,task->task_id);
+  debug("Pushing Task %s%d : %s\n",group->name,task->task_id, 
+      task->significance == SIGNIFICANT ? "sig": "non_sig" );
 }
 
 void push_task(task_t *task, char *name){
@@ -362,7 +368,8 @@ void push_task(task_t *task, char *name){
   pthread_mutex_lock(&group->pending_q->lock);
   add_pool_tail(group->pending_q,task);
   pthread_mutex_unlock(&group->pending_q->lock);
-  debug("Pushing Task %s%d\n",name,task->task_id);
+  debug("Pushing Task %s%d : %s\n",name,task->task_id, 
+      task->significance == SIGNIFICANT ? "sig": "non_sig" );
   //  pthread_mutex_unlock(&global_lock);
 }
 
@@ -371,6 +378,7 @@ void finished_task(task_t* task){
   task_t *elem;
 
   pthread_mutex_lock(&task->my_group->executing_q->lock);
+  pthread_mutex_lock(&task->my_group->finished_q->lock);
   elem = delete_element(task->my_group->executing_q,cmp_tasks,task);
   if(!elem)
     printf("Something went wrong\n");
@@ -391,6 +399,7 @@ void finished_task(task_t* task){
   exec_on_elem_targs(task->dependent_tasks,remove_dependency,task); 
 #endif
   pthread_mutex_unlock(&task->my_group->executing_q->lock);
+  pthread_mutex_unlock(&task->my_group->finished_q->lock);
 
   explicit_sync(task->my_group);
 }

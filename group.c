@@ -36,18 +36,10 @@ int cmp_group(void *args1, void *args2){
 }
 
 int exec_sanity(group_t *group){
-  //   printf("IN HERE\n");
-  int id = whoami();
   int result = SANITY_SUCCESS;
 
-  if (id == -1 ){
-    printf("I am main application\n");
-    if ( group->sanity_func )
-      result = group->sanity_func(group->sanity_func_args);
-  }else {
-    printf("**************************I am %d\n", id);
-    assert(0);
-  }
+  if ( group->sanity_func )
+    result = group->sanity_func(group->sanity_func_args);
 
   return result;
 }
@@ -67,12 +59,12 @@ group_t *create_group(char *name){
     return my_group;
   }
 
-  my_group = (group_t *) malloc (sizeof(group_t));
+  my_group = (group_t *) calloc(1, sizeof(group_t));
   assert(my_group);
   add_pool_head(groups,my_group);
 
   size_string = strlen(name) + 1;
-  my_group->name = (char*) malloc (sizeof(char) * size_string);
+  my_group->name = (char*) calloc(size_string, sizeof(char));
   assert(my_group->name);
 
   strcpy(my_group->name,name);
@@ -99,7 +91,7 @@ group_t *create_group(char *name){
 
   my_group->redo = 0;
   my_group->ratio = -1.0;
-  
+
   pthread_mutex_init(&my_group->lock, NULL);
   pthread_cond_init(&my_group->condition,NULL);
 
@@ -130,27 +122,23 @@ void force_termination(void *args){
 int wait_group_ratio(group_t* group, float ratio)
 {
   float temp;
-#ifdef DEBUG
-  printf("Calculating my ratio : ");
-#endif    
+  debug("Calculating my ratio : ");
+
+  pthread_mutex_lock(&group->executing_q->lock);
   temp = calculate_ratio(group);
-#ifdef DEBUG
-  printf("%f executing num %d\n", ratio,group->executing_num);
-#endif
+  debug("%f executing num %d\n", ratio,group->executing_num);
   if(temp >= ratio){
     if(group->executing_num == 0 && group->total_sig_tasks == group->finished_sig_num){
       group->schedule = 0;
-#ifdef DEBUG
-      printf("I am going to execute sanity funct\n");
-#endif
+      debug("I am going to execute sanity funct\n");
+      pthread_mutex_unlock(&group->executing_q->lock);
       return WAIT_DONE;
     }
   }
-#ifdef DEBUG
   else{
-    printf("Number of pending tasks %d\n",group->finished_sig_num);
+    debug("Number of pending tasks %d\n",group->finished_sig_num);
   }
-#endif
+  pthread_mutex_unlock(&group->executing_q->lock);
   return WAIT_PENDING;
 }
 
@@ -169,14 +157,16 @@ int wait_group_time(group_t *group, unsigned int time_ms)
 
   do 
   {
+    debug("Wait on watchdog...\n");
     ret =pthread_cond_timedwait(&group->condition, &group->lock, &watchdog);
     if (ret == ETIMEDOUT) 
     {
-      debug("Watchdog timer went off\n");
+      debug("Wait on watchdog...Done\n");
       if(group->finished_sig_num != group->total_sig_tasks){
         group->ratio = 0.0;
-        debug("Shall wait for all significant tasks\n");
+        debug("Wait for significant tasks...\n");
         pthread_cond_wait(&group->condition, &group->lock);
+        debug("Wait for significant tasks...Done\n");
         break;
       }
       else
@@ -188,6 +178,7 @@ int wait_group_time(group_t *group, unsigned int time_ms)
             exec_on_elem(group->executing_q,force_termination); 
             pthread_mutex_unlock(&group->executing_q->lock);
             group->terminated = 1;
+            #warning this might be wrong ...
             pthread_mutex_unlock(&group->lock);
           }
         }
@@ -223,6 +214,7 @@ int wait_group_all(group_t *group)
         pthread_mutex_lock(&group->executing_q->lock);
         exec_on_elem(group->executing_q,force_termination); 
         pthread_mutex_unlock(&group->executing_q->lock);
+        #warning this might be wrong
         group->terminated = 1;
         pthread_mutex_unlock(&group->lock);
       }
@@ -253,39 +245,47 @@ int wait_group(char *group, int (*func) (void *),  void * args , unsigned int ty
   }
 
   my_group = (group_t*) list->args; //get actual group
+  pthread_mutex_lock(&my_group->lock);
   my_group->sanity_func = func;
   my_group->sanity_func_args = args;
   my_group->ratio = ratio;
   my_group->redo = redo;
   my_group->locked = 1;
 
-  pthread_mutex_lock(&my_group->lock);
 group_redo:
   if (type & SYNC_RATIO)
   {
+    debug("Wait for ratio...\n");
     if ( wait_group_ratio(my_group, ratio) == WAIT_DONE )
     {
+      debug("Waiting for ratio...Done\n");
       goto done_exec_group;
     }
   }
   if( (type&SYNC_TIME) )
   {
+    debug("Waiting for time...\n");
     wait_group_time(my_group, time_us);
+    debug("Waiting for time...Done\n");
   }
   else if(type&SYNC_ALL)
   {
+    debug("Waiting for all...\n");
     wait_group_all(my_group);
+    debug("Waiting for all...Done\n");
   }
   else 
   {
+    debug("Waiting for condition...\n");
     pthread_cond_wait(&my_group->condition, &my_group->lock);
+    debug("Waiting for condition...Done\n");
   }
 
 
 done_exec_group:
-  
+
   debug("******* Executing sanity function for %s:%f\n", my_group->name,
-    calculate_ratio(my_group));
+  calculate_ratio(my_group));
   my_group->result = exec_sanity(my_group);
   my_group->executed++;
   if (   my_group->result != SANITY_SUCCESS 
@@ -296,9 +296,10 @@ done_exec_group:
     my_group->terminated = 0;
     my_group->locked = 1;
     exec_on_elem(my_group->finished_q, actual_push);
-    delete_list(my_group->finished_q);
-    my_group->finished_q = create_pool();
+    pthread_mutex_lock(&my_group->finished_q->lock);
+    empty_pool(my_group->finished_q);
     my_group->schedule = 1;
+    pthread_mutex_unlock(&my_group->finished_q->lock);
     debug("^^^^^^^ Done setting up re-execution\n");
     goto group_redo;
   }
@@ -354,17 +355,13 @@ void explicit_sync(group_t *curr_group){
     }
   }
 
-#if 0
-  curr_group->result = exec_sanity(curr_group);
-  curr_group->executed++;
-#endif
   curr_group ->locked = 0;
   // wake up the main application
-  debug("******* Waking up main\n");
   pthread_cond_signal(&curr_group->condition);
   //release mutex of the thread.
   pthread_mutex_unlock(&curr_group->lock);
   debug("Waking up main application\n");
+  fflush(stdout);
   return;
 
 }

@@ -1,8 +1,8 @@
 CC=gcc
 AR=ar
-CFLAGS=-c -Wall -g -DDEBUG -O3
-LDFLAGS= -lpthread  -lrt -fPIC
-SOURCES=list.c group.c task.c coordinator.c  accelerator.c
+CFLAGS=-c -Wall -g -DDEBUG -I include/ -O3
+LDFLAGS= -lpthread -lOpenCL -ldl -lrt -fPIC 
+SOURCES=list.c group.c task.c coordinator.c  accelerator.c opencl_nvidia_wrapper.c
 OBJECTS=$(SOURCES:.c=.o)
 EXECUTABLE=librtsrel.a
 

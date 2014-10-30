@@ -14,6 +14,7 @@ extern pool_t *non_sig_ready_tasks;
 extern pool_t *executing_tasks;
 extern pool_t *finished_tasks;
 pthread_mutex_t global_lock;
+void explicit_sync(void *args);
 
 int cmp_tasks(void *args1, void *args2){
   task_t *t1 = args1;

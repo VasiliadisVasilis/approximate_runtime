@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <execinfo.h>
 #include "coordinator.h"
 #include "list.h"
 #include "task.h"

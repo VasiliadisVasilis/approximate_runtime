@@ -1,5 +1,13 @@
+<<<<<<< HEAD
 tags
 *.o
 *.a
 *.bin
 *.swp
+=======
+# make and build files
+*.o
+*.a
+*.bin
+*~
+>>>>>>> 73daacc2b6e4d953473eb6d203fdcfca0f184bbf

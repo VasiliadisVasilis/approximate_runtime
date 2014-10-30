@@ -67,14 +67,14 @@ int main(){
   for ( i = 0 ; i < 1; i++){
     sprintf(sanity[i],"Mytask%d",i);
     for ( j = 0 ; j < 10; j++){
-      task = new_task(hello,"task arg",sizeof(char)*10, my_sanity,"sanity arg",10*sizeof(char),j%2,0);
+      task = new_task(hello,"task arg",sizeof(char)*9, my_sanity,"sanity arg",11*sizeof(char),j%2,0);
       push_task(task, "main_group");
     }
   }
   //   wait_group(char *group, int (*func) (void *),  void * args , 
   // 	     unsigned int type, unsigned int time_ms, unsigned int 
   // 	     time_us, float ratio, unsigned int redo);
-  wait_group("main_group" , big_sanity, sanity[0] , SYNC_RATIO, 0 , 0 , 0.1f, 0) ; 
+  wait_group("main_group" , big_sanity, sanity[0] , SYNC_RATIO, 0 , 0 , 0.8f, 0) ; 
   //    monte_carlo_pi(1000000);
   clock_gettime(CLOCK_MONOTONIC_RAW, &tv2);
 

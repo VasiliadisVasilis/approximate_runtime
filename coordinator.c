@@ -5,7 +5,7 @@
 #include "list.h"
 #include "task.h"
 #include "group.h"
-
+#include "debug.h"
 
 pool_t *pending_tasks;
 pool_t *sig_ready_tasks;
@@ -97,9 +97,8 @@ void check_sync(){
   return;
 }
 
-void init_system(unsigned int reliable_workers , unsigned int nonrel_workers){
-
-
+void init_system(unsigned int reliable_workers , unsigned int nonrel_workers)
+{
   /* Create the corresponing pulls to store the task descriptors */
   int i;
   total_workers = reliable_workers + nonrel_workers;
@@ -151,7 +150,6 @@ void init_system(unsigned int reliable_workers , unsigned int nonrel_workers){
   my_threads = (info*) calloc(total_workers, sizeof(info));
 
   assigned_jobs = (task_t**) calloc(total_workers, sizeof(task_t*));
-
   // Initialize runtime information.
   for( i = 0 ; i < total_workers ; i++){
     assigned_jobs[i] = NULL;
@@ -171,5 +169,6 @@ void init_system(unsigned int reliable_workers , unsigned int nonrel_workers){
       my_threads[i].reliable = 1;  
     assigned_jobs[i] = NULL;
     pthread_create(&(my_threads[i].my_id), &(my_threads[i].attributes), init_acc, &my_threads[i]);
-  }
+  } 
+
 }

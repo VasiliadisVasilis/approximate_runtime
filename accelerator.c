@@ -5,6 +5,7 @@
 #include "task.h"
 /* Include this *after* task.h if you wish to access task_t fields */
 #include "include/runtime.h"
+#include "debug.h"
 
 extern task_t **assigned_jobs;
 
@@ -63,7 +64,7 @@ task_t* get_job(info *me){
 void* main_acc(void *args){
   info *whoami = (info*) args;
   task_t *exec_task;
-
+  
   pthread_mutex_lock(&whoami->my_mutex);
   while(1){
     exec_task=get_job(whoami);

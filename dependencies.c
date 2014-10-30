@@ -1,5 +1,5 @@
 d_t *create_dependecy(p_t *depend, unsigned int type){
-  d_t *element = (d_t*) malloc (sizeof(d_t));
+  d_t *element = (d_t*) calloc(1,sizeof(d_t));
   assert(element);
   element->location = depend->start;
   element->size = depend->size;
@@ -26,7 +26,7 @@ int chk_depend(void *d1, void *d2){
 }
 
 void new_dependency(pool_t *pool, void *start, unsigned int size, unsigned int type, unsigned int ref){
-  d_t *new = (d_t*) malloc (sizeof(d_t));
+  d_t *new = (d_t*) calloc(1,sizeof(d_t));
   assert(new);
   new->start = start;
   new->size = size;

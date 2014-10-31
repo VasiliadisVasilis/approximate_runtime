@@ -17,7 +17,6 @@ struct DCT_TASK_ARGS_T
   long r, c, i, j;
 };
 
-
 struct IDCT_TASK_ARGS_T
 {
   long r, c;
@@ -47,17 +46,6 @@ void quantization_task(double dct[], int table, int r, int c, int i, int j)
   dct[(r * 8 + i)*WIDTH*8 + c * 8 + j] = dct[(r * 8 + i)*8*WIDTH+c * 8 + j] * table;
 }
 
-
-/* Image Compression: Encoder (DCT+Quantization) and Decoder (Dequantization+IDCT). 
-   They can be treated as two different kernels, but in order to quantify any 
-   error in encoder the quantized DCT output need to be processed by IDCT 
-
-   Code prepared as an application benchmark for the SCORPIO project
-contact: georgios.karakonstantis@epfl.ch 
-
- */
-
-
 double *COS, *C, *dct, *idct;
 unsigned char *pic;
 
@@ -85,10 +73,36 @@ int dct_trc(void *_args, void* not_used_at_all)
   return _dct_trc(args->r, args->c, args->i, args->j);
 }
 
-
 int _dct_trc(long _r, long _c, long _i, long _j)
 {
-  
+  long x, y, i, j, r, c;
+  long c_e;
+  double sum = 0;
+  double dct_high, dct_low;
+
+
+  r = _r;
+  c = _c;
+  if ( WIDTH-_c > STEP_C )
+    c_e = _c+STEP_C;
+  else
+    c_e = WIDTH; 
+
+  for ( c = _c; c<c_e; ++c )
+  {
+    for ( i=_i; i<_i+4; ++i )
+      for ( j=_j+1; j<_j+2; ++j)
+      {
+        dct_high = dct[(r * 8 + i)*8*WIDTH + c * 8 + j-1];
+        dct_low = dct[(r * 8 + i)*8*WIDTH + c * 8 + j];
+        if ( dct_high < dct_low )
+        {
+          dct_high += dct_low;
+          dct_low = dct_high/4;
+          dct_high = dct_low * 3;
+        }
+      }
+  }
   return SANITY_SUCCESS;
 }
 
@@ -151,7 +165,7 @@ void spawn_dct_task(long r, long c, long i, long j, uint8_t significance)
    90  85  75  60
    80  75  60  50
    70  60  50  40
- */
+*/
 
 void DCT(unsigned char pic[], double dct[], double COS[], double C[]) {
 
@@ -162,17 +176,17 @@ void DCT(unsigned char pic[], double dct[], double COS[], double C[]) {
     {
       c = k*STEP_C;
       spawn_dct_task(r, c, 0, 0, SIGNIFICANT );
-      spawn_dct_task(r, c, 0, 2, 60  >= RATIO*100);
-      spawn_dct_task(r, c, 0, 4, 50  >= RATIO*100);
-      spawn_dct_task(r, c, 0, 6, 40  >= RATIO*100);
-/*      spawn_dct_task(r, c, 2, 0, 90);
+      spawn_dct_task(r, c, 0, 2, 60  < RATIO*100);
+      spawn_dct_task(r, c, 0, 4, 50  < RATIO*100);
+      spawn_dct_task(r, c, 0, 6, 40  < RATIO*100);
+/*    spawn_dct_task(r, c, 2, 0, 90);
       spawn_dct_task(r, c, 2, 2, 85);
       spawn_dct_task(r, c, 2, 4, 75);
       spawn_dct_task(r, c, 2, 6, 60);*/
-      spawn_dct_task(r, c, 4, 0, 60  >= RATIO*100);
-      spawn_dct_task(r, c, 4, 2, 50  >= RATIO*100);
-      spawn_dct_task(r, c, 4, 4, 40  >= RATIO*100);
-      spawn_dct_task(r, c, 4, 6, 30  >= RATIO*100);
+      spawn_dct_task(r, c, 4, 0, 60  < RATIO*100);
+      spawn_dct_task(r, c, 4, 2, 50  < RATIO*100);
+      spawn_dct_task(r, c, 4, 4, 40  < RATIO*100);
+      spawn_dct_task(r, c, 4, 6, 30  < RATIO*100);
 /*      spawn_dct_task(r, c, 6, 0, 70);
       spawn_dct_task(r, c, 6, 2, 60);
       spawn_dct_task(r, c, 6, 4, 50);
@@ -217,12 +231,6 @@ void _idct_task(long _r, long _c)
   }
 }
 
-
-/* 
-   IDCT is being applied on each 8x8 output DCT block in order to decompress the image     
-   Again the upper left corners are more significant than the lower right ones
- */
-
 void IDCT() {
   idct_task_args_t args;
   task_t *task;
@@ -248,26 +256,6 @@ void IDCT() {
   fclose(out);
 }
 
-/*
-   This is the lossy part of the compression that indicates also the weights/significance of each DCT output. 
-   The ouputs of each 8x8 dct block are being quantized based on quantization matrices 
-   (the matrix used here is based on the JPEG standard, various others can be used based on the required quality). 
-   A small value/weight (closer to 1) in the matrix indicates more significant data. Someone can experiment 
-   with the values/weights in order to see the impact on quality.
-
-   This part actually approximates the resulted dct outputs trying to ensure high quality (no approximation) of the upper left corners
-   of each 8x8 dct block and reduce the values in the lower right corners which are not so necessary/significant. 
-
-   After quantization the resulted values are being dequantized in order to be fed to the IDCT for decompression 
- */
-
-
-/*
-   Next the mean square error and peak signal to noise ratio between the original and compressed-decompressed image 
-   are calculated. They are not part of the application but are used here for quantifiying the resulted image.
-   PSNR around 35db or greater indicates usually perfect quality   
- */
-
 double MSE_PSNR() {
   double MSE = 0;
   int r, c;
@@ -281,10 +269,6 @@ double MSE_PSNR() {
   PSNR = 10 * log10(255 * 255 / MSE);
   return PSNR;
 }
-
-/*peppers512.raw and lena512.raw are provided and can be tested*/
-
-
 
 int main(int argc, char* argv[]) {
   int r, c, THREADS;
@@ -309,13 +293,21 @@ int main(int argc, char* argv[]) {
   idct = malloc(sizeof(double)*WIDTH*HEIGHT*64);
   pic = malloc(sizeof(unsigned char)*WIDTH*HEIGHT*64);
 
-  in = fopen("lena512.raw", "rb");
+#if 1
+  in = fopen("gradient.raw", "rb");
   assert(in);
   for (r = 0; r < N; r++)
     for (c = 0; c < N; c++){
       assert(fscanf(in, "%c", &pic[r*8*WIDTH+c]));
     }
   fclose(in);
+#else
+  for (r = 0; r < N; r++)
+    for (c = 0; c < N; c++){
+      pic[r*8*WIDTH+c] = r%16;
+    }
+#endif
+  
   init_coef();
  for (r = 0; r < HEIGHT*8; r++)
     for (c = 0; c < WIDTH*8; c++){
@@ -324,7 +316,10 @@ int main(int argc, char* argv[]) {
 
   non_sig = THREADS/2;
   if ( non_sig == 0 )
+  {
     non_sig = 1;
+  }
+
   init_system(THREADS-non_sig, non_sig);
   start = my_time();
   DCT(pic, dct, COS, C);

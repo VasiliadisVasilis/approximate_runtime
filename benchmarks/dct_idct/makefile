@@ -1,4 +1,4 @@
-CFLAGS=-g -pthread -Wall -lm -O3 -DDEBUG
+CFLAGS=-g -pthread -Wall -lm -O3 # -DDEBUG
 LDFLAGS=-lrtsrel -lm -lrt
 LIB=-L../../
 INCLUDE=-I../../include/

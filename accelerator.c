@@ -66,29 +66,44 @@ void* main_acc(void *args){
   task_t *exec_task;
   
   pthread_mutex_lock(&whoami->my_mutex);
-  while(1){
+  while(1)
+  {
     exec_task=get_job(whoami);
     assert(exec_task);
     // if a fault is detected I am going to 
     // return to the following line
-    getcontext(&(whoami->context));
-    if(whoami->flag == 0){
-      whoami->flag = 1;
+    if ( whoami->reliable == Non_Reliable)
+    {
+      getcontext(&(whoami->context));
+    }
+    if(whoami->flag == Task_None)
+    {
+      whoami->flag = Task_Executing;
       whoami->execution(whoami->execution_args);
-      whoami->flag = 2;
+      whoami->flag = Task_Sanity;
+      if ( whoami->reliable == Non_Reliable )
+      {
+        setcontext(&(whoami->context));
+      }
     }
-    whoami->return_val = SANITY_SUCCESS;
-    if(whoami->sanity)
-      whoami->return_val = whoami->sanity(whoami->execution_args,whoami->sanity_args);  
-    if ( whoami->return_val != SANITY_SUCCESS  && whoami->redo >0 ){
-      whoami->redo--;
-      whoami->flag =0;
-      setcontext(&(whoami->context));
+    /*vasiliad: What if a SIGSEV or w/e occurs during a trc/grc ??? */
+    else if ( whoami->flag == Task_Sanity )
+    {
+      whoami->return_val = SANITY_SUCCESS;
+      if( whoami->sanity )
+      {
+        whoami->return_val = whoami->sanity(whoami->execution_args, whoami->sanity_args);  
+      }
+      if ( whoami->return_val != SANITY_SUCCESS  && whoami->redo > 0 )
+      {
+        whoami->redo--;
+        whoami->flag = Task_None;
+        setcontext(&(whoami->context));
+      }
     }
-    else{
-      finished_task(exec_task);
-    }
-    whoami->flag = 0;
+    
+    finished_task(exec_task);
+    whoami->flag = Task_None;
   }
-
 }
+

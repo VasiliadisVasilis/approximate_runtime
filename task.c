@@ -9,8 +9,12 @@
 #include "include/runtime.h"
 
 extern pool_t *pending_tasks;
+#ifdef DOUBLE_QUEUES
 extern pool_t *sig_ready_tasks;
 extern pool_t *non_sig_ready_tasks;
+#else
+extern pool_t *ready_tasks;
+#endif
 extern pool_t *executing_tasks;
 extern pool_t *finished_tasks;
 pthread_mutex_t global_lock;
@@ -238,10 +242,14 @@ void remove_dependency(void *removed, void *dependent){
   dpnt->dependencies--;
   if(dpnt->dependencies == 0){
     delete_element(pending_tasks,cmp_tasks, dpnt);
+  #ifdef DOUBLE_QUEUES
     if(dpnt->significance == 0)
       add_pool_tail(non_sig_ready_tasks,dpnt);
     else
       add_pool_tail(sig_ready_tasks,dpnt);
+   #else
+    add_pool_tail(ready_tasks, dpnt);
+   #endif
   }
   return ;
 }
@@ -270,10 +278,15 @@ void actual_push(void *_task)
   task->executed_times = 0;
 #ifdef DEPENDENCIES 
   exec_on_elem_targs(pending_tasks,dependent,task);
+#ifdef DOUBLE_QUEUES
   exec_on_elem_targs(sig_ready_tasks,dependent,task);
   exec_on_elem_targs(non_sig_ready_tasks,dependent,task);
+#else
+  exec_on_elem_targs(ready_tasks,dependent,task);
+#endif
 #endif
 
+#ifdef DOUBLE_QUEUES
   if ( task->significance )
   {
     group->total_sig_tasks++;
@@ -284,7 +297,17 @@ void actual_push(void *_task)
     group->total_non_sig_tasks++;
     temp = non_sig_ready_tasks;
   }
-
+#else
+  if ( task->significance )
+  {
+    group->total_sig_tasks++;
+  }
+  else
+  {
+    group->total_non_sig_tasks++;
+  }
+  temp = ready_tasks;
+#endif
   group->pending_num++;
 
 #ifdef DEPENDENCIES 
@@ -337,7 +360,7 @@ void push_task(task_t *task, char *name){
     group->total_non_sig_tasks++;
 
   group->pending_num++;
-
+#ifdef DOUBLE_QUEUES
   if(task->significance == 0)
   {
     temp= non_sig_ready_tasks;
@@ -346,6 +369,9 @@ void push_task(task_t *task, char *name){
   {
     temp= sig_ready_tasks;
   }
+#else
+  temp = ready_tasks;
+#endif
 
 #ifdef DEPENDENCIES 
   if(task->dependencies == 0){

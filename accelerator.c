@@ -72,6 +72,7 @@ void* main_acc(void *args){
     assert(exec_task);
     // if a fault is detected I am going to 
     // return to the following line
+#ifdef ENABLE_CONTEXT
     if ( whoami->reliable == Non_Reliable)
     {
       getcontext(&(whoami->context));
@@ -79,7 +80,9 @@ void* main_acc(void *args){
     if(whoami->flag == Task_None)
     {
       whoami->flag = Task_Executing;
+#endif
       whoami->execution(whoami->execution_args);
+#ifdef ENABLE_CONTEXT
       whoami->flag = Task_Sanity;
       if ( whoami->reliable == Non_Reliable )
       {
@@ -89,6 +92,7 @@ void* main_acc(void *args){
     /*vasiliad: What if a SIGSEV or w/e occurs during a trc/grc ??? */
     else if ( whoami->flag == Task_Sanity )
     {
+#endif
       whoami->return_val = SANITY_SUCCESS;
       if( whoami->sanity )
       {
@@ -100,8 +104,9 @@ void* main_acc(void *args){
         whoami->flag = Task_None;
         setcontext(&(whoami->context));
       }
+#ifdef ENABLE_CONTEXT
     }
-    
+#endif
     finished_task(exec_task);
     whoami->flag = Task_None;
   }

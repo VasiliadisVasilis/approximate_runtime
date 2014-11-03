@@ -7,10 +7,15 @@
 #include "task.h"
 #include "group.h"
 #include "debug.h"
+#include "config.h"
 
 pool_t *pending_tasks;
+#ifdef DOUBLE_QUEUES
 pool_t *sig_ready_tasks;
 pool_t *non_sig_ready_tasks;
+#else
+pool_t *ready_tasks;
+#endif
 pool_t *executing_tasks;
 pool_t *finished_tasks;
 int debug_flag = 0;
@@ -69,7 +74,7 @@ void action(int sig, siginfo_t* siginfo, void *context){
 
 
 void* init_acc(void *args){
-
+#ifdef ENABLE_SIGNALS
   struct sigaction act;
   
   memset(&act, 0, sizeof(act));
@@ -87,6 +92,8 @@ void* init_acc(void *args){
     perror("Could not assign signal handlers\n");
     exit(0);
   }
+#endif
+
   main_acc(args);
 
   return NULL;
@@ -113,11 +120,15 @@ void init_system(unsigned int reliable_workers , unsigned int nonrel_workers)
 
   //Store here significant tasks with 
   //unmet dependencies or tasks waiting for resources.
+  #ifdef DOUBLE_QUEUES
   sig_ready_tasks = create_pool(); 
 
   // Store here non - significant tasks with 
   //unmet dependencies or tasks waiting for resources.
   non_sig_ready_tasks = create_pool(); 
+  #else
+  ready_tasks = create_pool();
+  #endif
   //Tasks which are executed at the moment.  
   executing_tasks = create_pool();
   // Tasks finished their execution. I store them in 
@@ -125,8 +136,7 @@ void init_system(unsigned int reliable_workers , unsigned int nonrel_workers)
   // if requested.
   finished_tasks = create_pool();
 
-
-
+#ifdef ENABLE_SIGNALS
   struct sigaction act;
   memset(&act, 0, sizeof(act));
   act.sa_sigaction = my_action;
@@ -145,7 +155,7 @@ void init_system(unsigned int reliable_workers , unsigned int nonrel_workers)
     perror("Could not assign signal handlers\n");
     exit(0);
   }
-
+#endif
 
 
   my_threads = (info*) calloc(total_workers, sizeof(info));

@@ -13,8 +13,12 @@ extern pthread_cond_t cord_condition;
 extern pthread_mutex_t cord_lock;
 
 extern pool_t *pending_tasks;
+#ifdef DOUBLE_QUEUES
 extern pool_t *sig_ready_tasks;
 extern pool_t *non_sig_ready_tasks;
+#else
+extern pool_t *ready_tasks;
+#endif
 extern pool_t *executing_tasks;
 extern pool_t *finished_tasks;
 
@@ -29,20 +33,23 @@ int check_schedule(void *task, void *dont_care){
 
 task_t* get_job(info *me){
   task_t *element = NULL;
-  pool_t *ready_tasks ;
-
+  pool_t *ready;
+#ifdef DOUBLE_QUEUES
   if( me->reliable == 0 )
   {
-    ready_tasks = non_sig_ready_tasks;
+    ready = non_sig_ready_tasks;
   }
   else
   {
-    ready_tasks = sig_ready_tasks;
+    ready = sig_ready_tasks;
   }
+#else
+  ready = ready_tasks;
+#endif
   do{
-    pthread_mutex_lock(&ready_tasks->lock);
-    if(ready_tasks->head){
-      element = delete_element(ready_tasks, check_schedule, NULL);
+    pthread_mutex_lock(&ready->lock);
+    if(ready->head){
+      element = delete_element(ready, check_schedule, NULL);
     }
     if(element){
       move_q(element);
@@ -55,7 +62,7 @@ task_t* get_job(info *me){
       element->execution_thread = me->my_id;
       element->execution_id = me->id;
     }
-    pthread_mutex_unlock(&ready_tasks->lock);
+    pthread_mutex_unlock(&ready->lock);
   }while(element == NULL);
   return element;
 }

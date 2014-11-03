@@ -44,7 +44,6 @@ int exec_sanity(group_t *group){
   return result;
 }
 
-
 group_t *create_group(char *name){
   list_t *element;
   group_t *my_group;
@@ -106,14 +105,11 @@ float calculate_ratio(group_t *elem){
   else return 1.1;
 }
 
-
-
 void force_termination(void *args){
   task_t *task = (task_t*) args;
   pthread_mutex_lock(&task->lock);
   pthread_t acc = task->execution_thread;
   if(my_threads[task->execution_id].flag == 1){
-    fflush(stdout);
     pthread_kill(acc,SIGUSR1);
   }
   pthread_mutex_unlock(&task->lock);
@@ -226,7 +222,6 @@ int wait_group_all(group_t *group)
   return WAIT_DONE;
 }
 
-
 int wait_group(char *group, int (*func) (void *),  void * args , unsigned int type,
     unsigned int time_ms, unsigned int time_us, float ratio, unsigned int redo)
 {
@@ -281,7 +276,6 @@ group_redo:
     debug("Waiting for condition...Done\n");
   }
 
-
 done_exec_group:
 
   debug("******* Executing sanity function for %s:%f\n", my_group->name,
@@ -311,9 +305,8 @@ done_exec_group:
 
   printf("[%10s] Significant: %6d Non-significant: %6d Ratio: %3.2lf/%3.2lf\n",
       my_group->name, my_group->finished_sig_num, my_group->finished_non_sig_num,
-        my_group->finished_sig_num
-        /(double)(my_group->finished_sig_num+my_group->finished_non_sig_num),
-        ratio);
+      my_group->finished_sig_num/(double)(my_group->finished_sig_num + 
+      my_group->finished_non_sig_num), ratio);
   
   pthread_mutex_unlock(&my_group->lock);
   return 1; 
@@ -367,7 +360,6 @@ void explicit_sync(group_t *curr_group){
   //release mutex of the thread.
   pthread_mutex_unlock(&curr_group->lock);
   debug("Waking up main application\n");
-  fflush(stdout);
   return;
 
 }

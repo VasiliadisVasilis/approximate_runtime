@@ -12,6 +12,8 @@ double RATIO;
 typedef struct DCT_TASK_ARGS_T dct_task_args_t;
 typedef struct IDCT_TASK_ARGS_T idct_task_args_t;
 
+#define MAX_DCT_COEFF 20000
+
 struct DCT_TASK_ARGS_T
 {
   long r, c, i, j;
@@ -65,6 +67,16 @@ void init_coef() {
     if (i) C[i] = 1;
     else C[i] = 1 / sqrt(2);
   }
+
+  /* 8x8 dct coefficients */
+#if 0
+  for ( i=0; i<8; ++i )
+  {
+    for (j=0; j<8; ++j)
+      printf("%1.4lf ", COS[i*8+j]);
+    printf("\n");
+  }
+#endif
 }
 
 int dct_trc(void *_args, void* not_used_at_all)
@@ -80,7 +92,6 @@ int _dct_trc(long _r, long _c, long _i, long _j)
   double sum = 0;
   double dct_high, dct_low;
 
-
   r = _r;
   c = _c;
   if ( WIDTH-_c > STEP_C )
@@ -91,15 +102,13 @@ int _dct_trc(long _r, long _c, long _i, long _j)
   for ( c = _c; c<c_e; ++c )
   {
     for ( i=_i; i<_i+4; ++i )
-      for ( j=_j+1; j<_j+2; ++j)
+      for ( j=_j; j<_j+2; ++j)
       {
-        dct_high = dct[(r * 8 + i)*8*WIDTH + c * 8 + j-1];
-        dct_low = dct[(r * 8 + i)*8*WIDTH + c * 8 + j];
-        if ( dct_high < dct_low )
+        dct_high = round(dct[(r * 8 + i)*8*WIDTH + c * 8 + j]*quant_table[i][j]);
+        if ( isfinite(dct_high) && (dct_high<-MAX_DCT_COEFF || dct_high>MAX_DCT_COEFF) )
         {
-          dct_high += dct_low;
-          dct_low = dct_high/4;
-          dct_high = dct_low * 3;
+          dct_low = MAX_DCT_COEFF;
+          dct[(r * 8 + i)*8*WIDTH + c * 8 + j] = dct_low/quant_table[i][j];
         }
       }
   }
@@ -139,7 +148,6 @@ void _dct_task(long _r, long _c, long _i, long _j)
         sum *= C[i] * C[j] * 0.25;
         dct[(r * 8 + i)*8*WIDTH + c * 8 + j] = sum;
         quantization_task(dct, quant_table[i][j], r, c, i, j);
-
       }
   }
 }
@@ -294,7 +302,7 @@ int main(int argc, char* argv[]) {
   pic = malloc(sizeof(unsigned char)*WIDTH*HEIGHT*64);
 
 #if 1
-  in = fopen("gradient.raw", "rb");
+  in = fopen("lena512.raw", "rb");
   assert(in);
   for (r = 0; r < N; r++)
     for (c = 0; c < N; c++){

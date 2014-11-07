@@ -5,8 +5,8 @@
 #include <time.h>
 #include <ucontext.h>
 
-enum ReliabilityMode {Non_Reliable, Reliable};
-enum TaskStatus {Task_None, Task_Executing, Task_Sanity};
+enum ReliabilityMode {NON_RELIABLE, RELIABLE};
+enum TaskStatus {TASK_NONE, TASK_EXECUTING, TASK_SANITY};
 
 // info_t is the worker descriptor.
 

@@ -2,19 +2,23 @@
 #define __CONFIG__
 
 
+#ifdef ENABLE_CONTEXT
+#warning Context_set/get mechanism enabled.
+#endif
 
-#include "m5op.h"
-
-
+#ifdef ENABLE_SIGNALS
+#warning Signal handler mechanism enabled.
+#endif
 
 #ifdef GEMFI 						
+#include "m5op.h"
 #ifdef DUAL_TASKS 
 #define ENABLE_FI(val)					\
-	if ( val -> significance == Non_Reliable )		\
+	if ( val -> significance == NON_SIGNIFICANT )		\
 		fi_activate_inst(val->task_id, START); 	\
 
 #define DISABLE_FI(val) 				\
-	if( val -> significance == Non_Reliable )		\
+	if( val -> significance == NON_SIGNIFICANT )		\
 		fi_activate_inst(val->task_id, PAUSE); 	\
 
 #else

@@ -81,13 +81,13 @@ void* main_acc(void *args){
     // if a fault is detected I am going to 
     // return to the following line
 #ifdef ENABLE_CONTEXT
-    if ( whoami->reliable == Non_Reliable)
+    if ( whoami->reliable == NON_RELIABLE)
     {
       getcontext(&(whoami->context));
     }
-    if(whoami->flag == Task_None)
+    if(whoami->flag == TASK_NONE)
     {
-      whoami->flag = Task_Executing;
+      whoami->flag = TASK_EXECUTING;
 #endif
 
       ENABLE_FI(exec_task)
@@ -95,14 +95,14 @@ void* main_acc(void *args){
       DISABLE_FI(exec_task)
 
 #ifdef ENABLE_CONTEXT
-      whoami->flag = Task_Sanity;
-      if ( whoami->reliable == Non_Reliable )
+      whoami->flag = TASK_SANITY;
+      if ( whoami->reliable == NON_RELIABLE )
       {
         setcontext(&(whoami->context));
       }
     }
     /*vasiliad: What if a SIGSEV or w/e occurs during a trc/grc ??? */
-    else if ( whoami->flag == Task_Sanity )
+    else if ( whoami->flag == TASK_SANITY )
     {
 #endif
       whoami->return_val = SANITY_SUCCESS;
@@ -113,14 +113,14 @@ void* main_acc(void *args){
       if ( whoami->return_val != SANITY_SUCCESS  && whoami->redo > 0 )
       {
         whoami->redo--;
-        whoami->flag = Task_None;
+        whoami->flag = TASK_NONE;
         setcontext(&(whoami->context));
       }
 #ifdef ENABLE_CONTEXT
     }
 #endif
     finished_task(exec_task);
-    whoami->flag = Task_None;
+    whoami->flag = TASK_NONE;
   }
 }
 

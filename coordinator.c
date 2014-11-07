@@ -26,6 +26,11 @@ task_t **assigned_jobs;
 pthread_cond_t cord_condition;
 pthread_mutex_t cord_lock;
 
+//#ifdef GEMFI
+extern char __executable_start;
+extern char __etext;
+//#endif
+
 void explicit_sync(void *args);
 void* main_acc(void *args);
 void finished_task(task_t* task);
@@ -114,7 +119,8 @@ void init_system(unsigned int reliable_workers , unsigned int nonrel_workers)
     printf("Cannot request 0 workers\n Aborting....\n");
     exit(0);
   }
-
+  
+  INIT_FI(__executable_start,__etext)
 
   pending_tasks = create_pool();
 

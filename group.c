@@ -13,6 +13,8 @@
 #include "debug.h"
 /* Include this *after* task.h if you wish to access task_t fields*/
 #include "include/runtime.h" 
+#include "config.h"
+
 
 extern info *my_threads;
 extern int debug_flag ;
@@ -364,3 +366,6 @@ void explicit_sync(group_t *curr_group){
 
 }
 
+void stop_exec(){
+	STOP_FI();
+}

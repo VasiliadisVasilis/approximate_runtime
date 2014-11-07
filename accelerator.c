@@ -6,6 +6,7 @@
 /* Include this *after* task.h if you wish to access task_t fields */
 #include "include/runtime.h"
 #include "debug.h"
+#include "config.h"
 
 extern task_t **assigned_jobs;
 
@@ -88,7 +89,11 @@ void* main_acc(void *args){
     {
       whoami->flag = Task_Executing;
 #endif
+
+      ENABLE_FI(exec_task)
       whoami->execution(whoami->execution_args);
+      DISABLE_FI(exec_task)
+
 #ifdef ENABLE_CONTEXT
       whoami->flag = Task_Sanity;
       if ( whoami->reliable == Non_Reliable )

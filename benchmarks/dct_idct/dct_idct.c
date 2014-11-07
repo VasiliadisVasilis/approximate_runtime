@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <runtime.h>
+#include <m5op.h>
 #define N 512
 int WIDTH, HEIGHT;
 double RATIO;
@@ -44,11 +45,19 @@ int quant_table[8][8] = {
 };
 void quantization_task(double dct[], int table, int r, int c, int i, int j)
 {
-  dct[(r * 8 + i)*WIDTH*8 + c * 8 + j] = round(dct[(r * 8 + i)*8*WIDTH+c * 8 + j] / table);
+  dct[(r * 8 + i)*WIDTH*8 + c * 8 + j] = (int) (dct[(r * 8 + i)*8*WIDTH+c * 8 + j] / table);
   dct[(r * 8 + i)*WIDTH*8 + c * 8 + j] = dct[(r * 8 + i)*8*WIDTH+c * 8 + j] * table;
 }
 
-double *COS, *C, *dct, *idct;
+
+double *COS, *C,  *idct;
+
+#ifdef GEMFI
+double dct[512*512];
+#else
+double *dct;
+#endif
+
 unsigned char *pic;
 
 long my_time()
@@ -278,8 +287,16 @@ double MSE_PSNR() {
   return PSNR;
 }
 
+void fillInDCT(double *dct){
+	FILE *fd = fopen("ApplicationOutput","rb");
+	fread(dct,sizeof(double),512*512,fd);
+	fclose(fd);
+}
+
+
 int main(int argc, char* argv[]) {
   int r, c, THREADS;
+int i;
   long start, end;
   double psnr;
   FILE *in;
@@ -297,7 +314,9 @@ int main(int argc, char* argv[]) {
   HEIGHT = atoi(argv[2]);
   RATIO = atof(argv[3]);
   THREADS = atoi(argv[4]);
+#ifndef GEMFI
   dct = malloc(sizeof(double)*WIDTH*HEIGHT*64);
+#endif
   idct = malloc(sizeof(double)*WIDTH*HEIGHT*64);
   pic = malloc(sizeof(unsigned char)*WIDTH*HEIGHT*64);
 
@@ -329,18 +348,34 @@ int main(int argc, char* argv[]) {
   }
 
   init_system(THREADS-non_sig, non_sig);
+#ifdef GEMFI
+#warning compiling for gemfi execution
+m5_dumpreset_stats(0,0);
+#else
   start = my_time();
-  DCT(pic, dct, COS, C);
+#endif
+printf("Address is %p\n",dct);
+ DCT(pic, dct, COS, C);
+#ifdef GEMFI
+#warning compiling for gemfi execution
+  stop_exec();
+  m5_dumpreset_stats(0,0);
+  unsigned char *vals = (unsigned char *) dct;
+  for ( i = 0 ;  i < WIDTH*HEIGHT*64*sizeof(double) ; i++){
+  	m5_writefile((unsigned long) vals[i],sizeof(unsigned char) ,i);
+  }
+
+#else
+  fillInDCT(dct);
   IDCT();
   end = my_time();
-
   psnr = MSE_PSNR();
   fprintf(stderr, "===Approx DCT===\n");
   fprintf(stderr, "  Duration=%g\n", (double)(end-start)/1000000.0);
   fprintf(stderr, "  PSNR=%g\n", psnr);
   fprintf(stderr, "  Ratio=%g\n", RATIO);
   fprintf(stderr, "=================\n");
-
-  return 0;
+#endif
+   return 0;
 }
 

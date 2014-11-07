@@ -1,7 +1,7 @@
-CFLAGS=-g -pthread -Wall -lm -O3 # -DDEBUG
-LDFLAGS=-lrtsrel -lm -lrt
-LIB=-L../../
-INCLUDE=-I../../include/
+override CFLAGS+= -pthread -Wall  -O3 --static# -DDEBUG
+LDFLAGS=-lrtsrel -lm -lrt -lm5
+LIB=-L../../ -L../../fi
+INCLUDE=-I../../include/ -I../../fi
 
 all: runtime dct
 

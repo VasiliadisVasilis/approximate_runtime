@@ -52,4 +52,5 @@ typedef struct groups{
 
 group_t *create_group(char *name);
 int wait_group(char *group, int (*func) (void *),  void * args , unsigned int type, unsigned int time_ms, unsigned int time_us, float ratio, unsigned int redo);
+void stop_exec(); 
 #endif

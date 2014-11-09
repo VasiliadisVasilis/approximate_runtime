@@ -5,7 +5,9 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <runtime.h>
+#ifdef GEMFI
 #include <m5op.h>
+#endif
 #define N 512
 int WIDTH, HEIGHT;
 double RATIO;
@@ -367,7 +369,7 @@ printf("Address is %p\n",dct);
   	m5_writefile((unsigned long) vals[i],sizeof(unsigned char) ,i);
   }
 #else
-  fillInDCT(dct);
+//  fillInDCT(dct);
   IDCT();
   end = my_time();
   psnr = MSE_PSNR();

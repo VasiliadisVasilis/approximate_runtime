@@ -305,7 +305,7 @@ done_exec_group:
     exec_on_elem(my_group->finished_q, free_args);
   }
 
-  printf("[%10s] Significant: %6d Non-significant: %6d Ratio: %3.2lf/%3.2lf\n",
+  printf("[%10s] Significant: %6d | Non-significant: %6d | Ratio: %3.2lf/%3.2lf\n",
       my_group->name, my_group->finished_sig_num, my_group->finished_non_sig_num,
       my_group->finished_sig_num/(double)(my_group->finished_sig_num + 
       my_group->finished_non_sig_num), ratio);

@@ -346,7 +346,9 @@ int i;
   {
     non_sig = 1;
   }
-
+#ifdef GEMFI
+	m5_switchcpu();
+#endif
   init_system(THREADS-non_sig, non_sig);
 #ifdef GEMFI
 #warning compiling for gemfi execution
@@ -364,7 +366,6 @@ printf("Address is %p\n",dct);
   for ( i = 0 ;  i < WIDTH*HEIGHT*64*sizeof(double) ; i++){
   	m5_writefile((unsigned long) vals[i],sizeof(unsigned char) ,i);
   }
-
 #else
   fillInDCT(dct);
   IDCT();

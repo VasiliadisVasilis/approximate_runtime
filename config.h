@@ -29,7 +29,7 @@
 #endif
 
 #define INIT_FI(a,b) fi_read_init_all((unsigned long)&a, (unsigned long)&b);	
-#define STOP_FI() fi_activate_inst(0,DUMP);			
+#define STOP_FI() fi_activate_inst(0,DUMP);
 
 #else
 

@@ -9,7 +9,7 @@ runtime:
 	make -C ../../
 
 dct: dct_idct.c
-	gcc ${CFLAGS} ${LIB} ${INCLUDE} -DSTEP_C=4 dct_idct.c ${LDFLAGS} -o dct
+	gcc ${CFLAGS} ${LIB} ${INCLUDE} -DSTEP_C=64 dct_idct.c ${LDFLAGS} -o dct
 
 clean:
 	rm -f decoded_image.raw decoded_image.jpg PSNR.txt dct_idct_omp  approx_bddt exact_bddt perfor_bddt dct

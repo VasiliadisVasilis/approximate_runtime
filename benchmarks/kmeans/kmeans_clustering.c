@@ -68,6 +68,7 @@
 #include <runtime.h>
 #include <string.h>
 
+#define OPTIMIZED_CENTER_COMPUTATION
 #define RANDOM_MAX 2147483647
 
 #ifndef FLT_MAX
@@ -270,7 +271,7 @@ void process_point(void* _args)
   int      npoints   = args->npoints;
   int      tid       = args->tid;
   int      work      = args->work;
-  int start, end, i, index, j;
+  int start, end, i, index;
 
   start = tid*work;
   end = start+work;
@@ -324,16 +325,16 @@ void process_cluster(void *_args)
 {
   arg_t   *args      = (arg_t*) _args;
   int      nfeatures = args->nfeatures;
-  int      npoints   = args->npoints;
   int      tid       = args->tid;
   int i, j, delta = 0,  old_points, cur;
   int pos, tail;
-  int deleted = 0, new_points , prev_deleted;
+  int deleted = 0, new_points;
   cluster_t *p;
 
   p = cluster_points + tid;
   old_points = p->old_points;
   new_points = p->new_points;
+#ifdef OPTIMIZED_CENTER_COMPUTATION
   for ( j=0; j<nfeatures; ++j)
   {
     new_centers[tid][j] = 0;
@@ -343,17 +344,16 @@ void process_cluster(void *_args)
   for ( i=0; i<p->new_points; ++i )
   {
     cur = p->points[old_points + i];
-    assert(cur < npoints);
-    assert(cur >= 0 );
     for ( j=0; j<nfeatures; ++j )
     {
       new_centers[tid][j] += feature[cur][j];
     }
   }
+#endif
   delta = p->new_points;
 
   /* vasiliad: compute how much the removal of old points affects the center
-     and replace old points with new whenever possible */
+     and replace old points with2.26104e+06 radius new whenever possible */
 
   i = 0;
 
@@ -397,12 +397,29 @@ void process_cluster(void *_args)
   p->new_points = 0;
   assert(p->old_points>0);
   /* vasiliad: update the center */
+#ifdef OPTIMIZED_CENTER_COMPUTATION
   for (i=0; i<nfeatures; ++i )
   {
     clusters[tid][i] = (old_points*clusters[tid][i] + new_centers[tid][i])
       /(float)(p->old_points);
   } 
-
+#else
+  for ( j=0; j<nfeatures; ++j )
+  {
+    clusters[tid][j] = 0;
+  }
+  for ( i=0; i<p->old_points; ++i )
+  {
+    for ( j=0; j<nfeatures; ++j )
+    {
+      clusters[tid][j] += feature[p->points[i]][j];
+    }
+  }
+  for ( j=0; j<nfeatures; ++j )
+  {
+    clusters[tid][j] /= (float) p->old_points;
+  }
+#endif
   __sync_fetch_and_add(&sum_delta, delta);
 }
 
@@ -415,7 +432,7 @@ float** kmeans_clustering(float **_feature,    /* in: [npoints][nfeatures] */
     float   threshold,
     int    *_membership) /* out: [npoints] */
 {
-  int      i, j, k, n=0, loop=0;
+  int      i, j, loop=0;
   int      tid, work;
   int      nthreads;
   char group_name[256];
@@ -523,23 +540,14 @@ float** kmeans_clustering(float **_feature,    /* in: [npoints][nfeatures] */
     {
       memset(moved, NOT_MOVED, sizeof(char)*npoints);
     }
-    for ( i=0; i<npoints; ++i )
-    {
-      if ( moved[i] != NOT_MOVED )
-      {
-        printf("NOT MOVED %d from %d\n", i, membership[i]);
-        assert(0);
-      }
-    }
     assert(points == npoints);
   } while (sum_delta > threshold && loop++ < 500);
 
   for ( i=0; i<nclusters; ++i)
   {
-    calculateRadius(clusters, feature, npoints, i, nfeatures, radius+i);
+    calculateRadius(clusters, feature, npoints, i, nfeatures, radius);
     printf("Cluster %d contains %d and has %g radius\n", i, cluster_points[i].old_points, radius[i]);
   }
-  
   printf("Delta = %d # %lf\n", sum_delta, threshold);
   printf("Loops = %d\n", loop);
   free(new_centers[0]);

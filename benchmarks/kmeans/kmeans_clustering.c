@@ -294,7 +294,6 @@ void process_point(void* _args)
   }
 }
 
-#if 0
 void calculateRadius(
     float **cluster_coords,         /* [npts][nfeatures] */
     float **points_coords,
@@ -320,7 +319,6 @@ void calculateRadius(
     }
   }
 }
-#endif
 
 void process_cluster(void *_args)
 {
@@ -330,11 +328,12 @@ void process_cluster(void *_args)
   int      tid       = args->tid;
   int i, j, delta = 0,  old_points, cur;
   int pos, tail;
+  int deleted = 0, new_points , prev_deleted;
   cluster_t *p;
 
   p = cluster_points + tid;
   old_points = p->old_points;
-
+  new_points = p->new_points;
   for ( j=0; j<nfeatures; ++j)
   {
     new_centers[tid][j] = 0;
@@ -357,17 +356,7 @@ void process_cluster(void *_args)
      and replace old points with new whenever possible */
 
   i = 0;
-  int deleted = 0, new_points = p->new_points, prev_deleted;
 
-  prev_deleted  = 0;
-  for ( i =0; i<p->old_points; ++i )
-  {
-    if  ( moved[p->points[i]] == MOVED )
-    {
-      prev_deleted ++;
-    }
-  }
-  
   tail = old_points + new_points -1;
   deleted = 0;
   for ( pos=0, i=0; i<old_points; ++i )
@@ -397,16 +386,12 @@ void process_cluster(void *_args)
       pos++;
     }
   }
-  
-  printf("diffL %d %d %d\n", prev_deleted - deleted, p->new_points, p->new_points);
-  assert(deleted == prev_deleted);
 
   /* vasiliad: copy in the remaining points */
   for ( i=0; i<p->new_points; ++i )
   {
     p->points[p->old_points+i] = p->points[old_points+i];
   }
-
   
   p->old_points = p->old_points+ p->new_points;
   p->new_points = 0;
@@ -414,33 +399,9 @@ void process_cluster(void *_args)
   /* vasiliad: update the center */
   for (i=0; i<nfeatures; ++i )
   {
-    new_centers[tid][i] = (old_points*clusters[tid][i] + new_centers[tid][i])
+    clusters[tid][i] = (old_points*clusters[tid][i] + new_centers[tid][i])
       /(float)(p->old_points);
   } 
-  for ( j=0; j<nfeatures; ++j )
-  {
-    clusters[tid][j] = 0.0f;
-  }
-  for ( i=0; i<p->old_points; ++i )
-  {
-    for ( j=0; j<nfeatures; ++j )
-    {
-      clusters[tid][j] += feature[p->points[i]][j];
-    }
-  }
-  for ( j=0; j<nfeatures; ++j )
-  {
-    clusters[tid][j] /= (float)(p->old_points);
-    if ( fabs(clusters[tid][j]-new_centers[tid][j]) > 0.0000001)
-    {
-      float a = fabs(clusters[tid][j]-new_centers[tid][j]);
-      printf("diff %d %f:%f %f%%\n", tid, a, clusters[tid][j], a*100.0f/clusters[tid][j]);
-    }
-  }
-  for ( j=0; j<nfeatures; ++j )
-  {
-    clusters[tid][j] = new_centers[tid][j];
-  }
 
   __sync_fetch_and_add(&sum_delta, delta);
 }
@@ -556,9 +517,7 @@ float** kmeans_clustering(float **_feature,    /* in: [npoints][nfeatures] */
     for ( i=0; i<nclusters; ++i)
     {
       points += cluster_points[i].old_points;
-      printf("Contained: %d\n", cluster_points[i].old_points);
     }
-    printf("Total contained: %d/%d\n", points,npoints);
 
     if ( loop == 0 )
     {
@@ -575,6 +534,12 @@ float** kmeans_clustering(float **_feature,    /* in: [npoints][nfeatures] */
     assert(points == npoints);
   } while (sum_delta > threshold && loop++ < 500);
 
+  for ( i=0; i<nclusters; ++i)
+  {
+    calculateRadius(clusters, feature, npoints, i, nfeatures, radius+i);
+    printf("Cluster %d contains %d and has %g radius\n", i, cluster_points[i].old_points, radius[i]);
+  }
+  
   printf("Delta = %d # %lf\n", sum_delta, threshold);
   printf("Loops = %d\n", loop);
   free(new_centers[0]);

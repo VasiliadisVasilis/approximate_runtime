@@ -67,15 +67,15 @@ int execute_kernels(int iterations, int tasks)
     for ( j =0; j<tasks; ++j )
     {
       /* CN */
-      start = j*oclCode->N/(double)tasks;
-      end   = (j+1)*oclCode->N/(double)tasks;
+      start = j*oclCode->M/(double)tasks;
+      end   = (j+1)*oclCode->M/(double)tasks;
       CN(Lq, Lr, oclCode->ligacoesx, oclCode->Depth, start, end);
     }
     for ( j=0 ; j<tasks; ++j)
     {
       /* BN */
-      start = j*oclCode->M/(double)tasks;
-      end   = (j+1)*oclCode->M/(double)tasks;
+      start = j*oclCode->N/(double)tasks;
+      end   = (j+1)*oclCode->N/(double)tasks;
       BN(Lq, Lr, Pi, oclCode->ligacoesx, oclCode->Depth, start, end);
     }
   }
@@ -95,59 +95,6 @@ void cleanupHost(void)
   free(Lq);
   free(oclCode);
 }
-
-int main(int argc,char *argv[]){
-  int iterations, samples, i, tasks;
-  double depth;
-  if(argc!=6){
-    fprintf(stdout,"Usage: <executable> [Alist File] [Iterations] [Depth] [Samples] [Tasks]\n");
-    return -1;
-  }
-
-  iterations = atoi(argv[2]);
-  depth = atof(argv[3]);
-  samples = atoi(argv[4]);
-  tasks   = atoi(argv[5]);
-  
-  printf("-- Loading Code defined in %s\n",argv[1]);
-  oclCode = (LDPC*) malloc(sizeof(LDPC));
-
-  oclCode->Depth = depth;
-
-  ReadAlistFile(oclCode,argv[1]);
-  //LogMemoryLayout(oclCode);
-
-
-  // Initialize Host application 
-  printf("-- Initializing Host\n");
-  if(initializeHost(oclCode) == 1)
-    return 1;
-  //PrintDebug(oclCode,0,"Lq_Init");
-  //PrintDebug(oclCode,2,"Pi");
-
-  // Initialize OpenCL resources
-  // Run the CL program
-  printf("-- Ready to launch\n");
-
-  for (i = 0; i < samples; i++)
-    if(execute_kernels(iterations, tasks) == 1)
-      return 1;
-
-
-  //Logging debug. Comment next 5 lines if no debug is to be produced in the "results" folder
-  printf("-- Logging debug:\n");
-  printf("\tLq ");
-  PrintDebug(oclCode,0,"Lq");
-  printf("Lr\n");
-  PrintDebug(oclCode,1,"Lr");
-
-  // Release host resources
-  printf("-- Cleaning up Host\n");
-  cleanupHost();
-
-  return 0;
-}
-
 
 int ReadAlistFile(LDPC *Code,const char *AlistFile){
 
@@ -354,5 +301,56 @@ void PrintDebug(LDPC *code,const int print_flag,const char *filename){
     fprintf(fd_data_log,"];\n");
   }
   fclose(fd_data_log);
+}
+
+int main(int argc,char *argv[]){
+  int iterations, samples, i, tasks;
+  double depth;
+  if(argc!=6){
+    fprintf(stdout,"Usage: <executable> [Alist File] [Iterations] [Depth] [Samples] [Tasks]\n");
+    return -1;
+  }
+
+  iterations = atoi(argv[2]);
+  depth = atof(argv[3]);
+  samples = atoi(argv[4]);
+  tasks   = atoi(argv[5]);
+  
+  printf("-- Loading Code defined in %s\n",argv[1]);
+  oclCode = (LDPC*) malloc(sizeof(LDPC));
+
+  oclCode->Depth = depth;
+
+  ReadAlistFile(oclCode,argv[1]);
+  //LogMemoryLayout(oclCode);
+
+
+  // Initialize Host application 
+  printf("-- Initializing Host\n");
+  if(initializeHost(oclCode) == 1)
+    return 1;
+  //PrintDebug(oclCode,0,"Lq_Init");
+  //PrintDebug(oclCode,2,"Pi");
+
+  // Initialize OpenCL resources
+  // Run the CL program
+  printf("-- Ready to launch\n");
+
+  for (i = 0; i < samples; i++)
+    if(execute_kernels(iterations, tasks) == 1)
+      return 1;
+
+  //Logging debug. Comment next 5 lines if no debug is to be produced in the "results" folder
+  printf("-- Logging debug:\n");
+  printf("\tLq ");
+  PrintDebug(oclCode,0,"Lq");
+  printf("Lr\n");
+  PrintDebug(oclCode,1,"Lr");
+
+  // Release host resources
+  printf("-- Cleaning up Host\n");
+  cleanupHost();
+
+  return 0;
 }
 

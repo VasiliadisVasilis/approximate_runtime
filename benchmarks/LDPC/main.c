@@ -7,8 +7,31 @@
 //#																		#
 //#######################################################################
 
+#include <runtime.h>
 #include "oclLDPC_fxp.hpp"
 #include "SendMail.hpp"
+//Code transmission variables
+unsigned int *Lq;			//q messages
+unsigned int *Lr;			//r messages
+unsigned int *Pi;			//r messages
+
+LDPC *oclCode = NULL;	//LDPC Code parameters and memory layout storer
+
+//Host side timers
+timing h_mem_timer[1];
+timing h_kernel_timer[1];
+
+//OCL workgroup
+size_t CN_wg[1];
+size_t BN_wg[1];
+
+//OCL device counter resolution
+size_t resolution;
+
+//shrUtil log
+int USER_LOG;
+
+
 
 //////////////////////////////////////////
 // Initialization of input data with Lpn=1
@@ -51,33 +74,57 @@ int initializeHost(LDPC *Code)
   return 0;
 }
 
-/*
- * \brief Run OpenCL program 
- *		  
- *        Bind host variables to kernel arguments 
- *		  Run the CL kernel
- */
 int execute_kernels(int iterations, int tasks)
 {
   int i, start, end, j;
+  char group_name[30];
+  task_t *task;
+  struct arg_t arg;
   timer_reset(h_kernel_timer);
 
   timer_start(h_kernel_timer);
   for(i=0;i<iterations;i++){
     for ( j =0; j<tasks; ++j )
     {
-      /* CN */
       start = j*oclCode->M/(double)tasks;
       end   = (j+1)*oclCode->M/(double)tasks;
-      CN(Lq, Lr, oclCode->ligacoesx, oclCode->Depth, start, end);
+      arg.Lq = Lq;
+      arg.Lr = Lr;
+      arg.ligacoesf = oclCode->ligacoesf;
+      arg.set_max = oclCode->Depth;
+      arg.start = start;
+      arg.end = end;
+      
+      task = new_task(CN, &arg, sizeof(arg), NULL, NULL, 0,
+          NON_SIGNIFICANT, 0);
+      sprintf(group_name, "CN%d\n", i);
+      push_task(task, group_name);
+      /* CN */
+      /* CN(Lq, Lr, oclCode->ligacoesf, oclCode->Depth, start, end); */
     }
+    
+    wait_group(group_name, NULL, NULL, SYNC_RATIO, 0, 0, 1.0f, 0);
     for ( j=0 ; j<tasks; ++j)
     {
-      /* BN */
       start = j*oclCode->N/(double)tasks;
       end   = (j+1)*oclCode->N/(double)tasks;
-      BN(Lq, Lr, Pi, oclCode->ligacoesx, oclCode->Depth, start, end);
+      arg.Lq = Lq;
+      arg.Lr = Lr;
+      arg.Pi = Pi;
+      arg.ligacoesx = oclCode->ligacoesx;
+      arg.set_max = oclCode->Depth;
+      arg.start = start;
+      arg.end = end;
+      
+      task = new_task(BN, &arg, sizeof(arg), NULL, NULL, 0,
+          NON_SIGNIFICANT, 0);
+      group_name[0] = 'B';
+      push_task(task, group_name);
+      /* BN */
+      /*BN(Lq, Lr, Pi, oclCode->ligacoesx, oclCode->Depth, start, end);*/
     }
+    
+    wait_group(group_name, NULL, NULL, SYNC_RATIO, 0, 0, 1.0f, 0);
   }
   timer_stop(h_kernel_timer);
   printf("-- Kernel time\t\t\t%lld\t[us]\n",(h_kernel_timer->total));
@@ -305,9 +352,10 @@ void PrintDebug(LDPC *code,const int print_flag,const char *filename){
 
 int main(int argc,char *argv[]){
   int iterations, samples, i, tasks;
+  int threads, non_sig_threads;
   double depth;
-  if(argc!=6){
-    fprintf(stdout,"Usage: <executable> [Alist File] [Iterations] [Depth] [Samples] [Tasks]\n");
+  if(argc!=7){
+    fprintf(stdout,"Usage: <executable> [Alist File] [Iterations] [Depth] [Samples] [Tasks] [Threads]\n");
     return -1;
   }
 
@@ -315,6 +363,16 @@ int main(int argc,char *argv[]){
   depth = atof(argv[3]);
   samples = atoi(argv[4]);
   tasks   = atoi(argv[5]);
+  threads = atoi(argv[6]);
+
+  non_sig_threads = threads/2;
+
+  if ( non_sig_threads == 0 )
+  {
+    non_sig_threads = 1;
+  }
+
+  init_system(threads-non_sig_threads, non_sig_threads);
   
   printf("-- Loading Code defined in %s\n",argv[1]);
   oclCode = (LDPC*) malloc(sizeof(LDPC));

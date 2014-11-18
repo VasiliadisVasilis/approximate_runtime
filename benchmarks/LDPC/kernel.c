@@ -7,6 +7,11 @@
 //#																		#
 //#######################################################################
 
+#include "oclLDPC_fxp.hpp"
+#include <stdlib.h>
+#include <ctype.h>
+#include <macros.hpp>
+
 #define EDGES 24000
 #define N 8000
 #define BNW 3
@@ -14,9 +19,7 @@
 #define CNW 6
 #define IOFFSET 128
 
-#include <stdlib.h>
-#include <ctype.h>
-#include <macros.hpp>
+
 
 void CN_Processing( unsigned int *Lq,  unsigned int *Lr, int *ligacoesf,unsigned int tid,unsigned int set, unsigned int set_max){
 
@@ -697,7 +700,9 @@ void BN_Processing( unsigned int *Lq,  unsigned int *Lr, unsigned int *Pi, int *
   }
 }
 
-void CN( unsigned int *Lq,  unsigned int *Lr, int *ligacoesf, unsigned int set_max, 
+
+
+void _CN( unsigned int *Lq,  unsigned int *Lr, unsigned int *ligacoesf, unsigned int set_max, 
   unsigned int start, unsigned int end)
 {
   unsigned int tid, i, set;
@@ -710,7 +715,8 @@ void CN( unsigned int *Lq,  unsigned int *Lr, int *ligacoesf, unsigned int set_m
   }
 }
 
-void BN( unsigned int *Lq,  unsigned int *Lr, unsigned int *Pi, int *ligacoesx,
+void 
+_BN( unsigned int *Lq,  unsigned int *Lr, unsigned int *Pi, unsigned int *ligacoesx,
   unsigned int set_max, unsigned int start, unsigned int end)
 {
   unsigned int tid, i, set;
@@ -722,3 +728,34 @@ void BN( unsigned int *Lq,  unsigned int *Lr, unsigned int *Pi, int *ligacoesx,
     BN_Processing(Lq,Lr,Pi,ligacoesx,tid,set,set_max);
   }
 }
+
+void
+CN(void* _args)
+{
+  struct arg_t *arg = (struct arg_t*) _args;
+  unsigned int *Lq = arg->Lq;
+  unsigned int *Lr = arg->Lr;
+  unsigned int *ligacoesf = arg->ligacoesf;
+  unsigned int set_max = arg->set_max;
+  unsigned int start = arg->start;
+  unsigned int end = arg->end;
+
+  _CN(Lq, Lr, ligacoesf, set_max, start, end);
+}
+
+void 
+BN(void* _args)
+{
+  struct arg_t *arg = (struct arg_t*) _args;
+  unsigned int *Lq = arg->Lq;
+  unsigned int *Lr = arg->Lr;
+  unsigned int *Pi = arg->Pi;
+  unsigned int *ligacoesx = arg->ligacoesf;
+  unsigned int set_max = arg->set_max;
+  unsigned int start = arg->start;
+  unsigned int end = arg->end;
+
+  _BN(Lq, Lr, Pi, ligacoesx, set_max, start, end);
+}
+
+

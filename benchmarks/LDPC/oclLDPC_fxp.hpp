@@ -28,9 +28,8 @@
 #include <unistd.h>
 
 
-
 //Struct LDPC_Code
-typedef struct{
+typedef struct LDPC_T {
 	int N;				//Code block length
 	int M;              //# Parity Equations
 	int BNW;            //Maximum BitNode Weight [Constant if regular]
@@ -46,27 +45,10 @@ typedef struct{
 	int Depth;			//Vector depth
 } LDPC;
 
-
-//Code transmission variables
-unsigned int *Lq;			//q messages
-unsigned int *Lr;			//r messages
-unsigned int *Pi;			//r messages
-
-LDPC *oclCode = NULL;	//LDPC Code parameters and memory layout storer
-
-//Host side timers
-timing h_mem_timer[1];
-timing h_kernel_timer[1];
-
-//OCL workgroup
-size_t CN_wg[1];
-size_t BN_wg[1];
-
-//OCL device counter resolution
-size_t resolution;
-
-//shrUtil log
-int USER_LOG;
+struct arg_t
+{
+  unsigned int *Lq, *Lr, *Pi, *ligacoesf, *ligacoesx, set, set_max, start, end;
+};
 
 
 /*** FUNCTION DECLARATIONS ***/
@@ -84,10 +66,11 @@ void PrintDebug(LDPC *,const int,const char*);
 /* Releases program's resources */
 void cleanupHost(void);
 
-void CN( unsigned int *Lq,  unsigned int *Lr, int *ligacoesf, unsigned int set_max, 
+void _CN( unsigned int *Lq,  unsigned int *Lr, unsigned int *ligacoesf, unsigned int set_max, 
   unsigned int start, unsigned int end);
-void BN( unsigned int *Lq,  unsigned int *Lr, unsigned int *Pi, int *ligacoesx,
+void _BN( unsigned int *Lq,  unsigned int *Lr, unsigned int *Pi, unsigned int *ligacoesx,
   unsigned int set_max, unsigned int start, unsigned int end);
-
+void CN(void *args);
+void BN(void *args);
 
 #endif  /* #ifndef TEMPLATE_H_ */

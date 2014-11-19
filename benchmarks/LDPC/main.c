@@ -81,7 +81,7 @@ int execute_kernels(int iterations, int tasks)
   task_t *task;
   struct arg_t arg;
   timer_reset(h_kernel_timer);
-
+  
   timer_start(h_kernel_timer);
   for(i=0;i<iterations;i++){
     for ( j =0; j<tasks; ++j )

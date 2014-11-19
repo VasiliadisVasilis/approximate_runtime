@@ -5,7 +5,7 @@ LDFLAGS=-lrtsrel -lm -lrt
 LIB=-L../../
 INCLUDE=-I../../include/ -I.
 
-ldpc: timer.o main.o kernel.o runtime
+ldpc: runtime timer.o main.o kernel.o 
 	$(CC) $(CFLAGS) $(LIB) $(INCLUDE) timer.o main.o kernel.o -o ldpc $(LDFLAGS)
 
 runtime:

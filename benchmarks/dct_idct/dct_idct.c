@@ -27,8 +27,10 @@ struct IDCT_TASK_ARGS_T
   long r, c;
 };
 
+#ifdef SANITY
 int dct_trc(void *args, void *not_used_at_all);
 int _dct_trc(long _r, long _c, long _i, long _j);
+#endif
 
 void dct_task(void* args, unsigned int task_id, unsigned int significance);
 void idct_task(void* args, unsigned int task_id, unsigned int significance);
@@ -90,6 +92,7 @@ void init_coef() {
 #endif
 }
 
+#ifdef SANITY
 int dct_trc(void *_args, void* not_used_at_all)
 {
   dct_task_args_t *args = (dct_task_args_t*) _args;
@@ -120,11 +123,13 @@ int _dct_trc(long _r, long _c, long _i, long _j)
         {
           dct_low = MAX_DCT_COEFF;
           dct[(r * 8 + i)*8*WIDTH + c * 8 + j] = dct_low/quant_table[i][j];
+          printf("TRC\n");
         }
       }
   }
   return SANITY_SUCCESS;
 }
+#endif
 
 void dct_task(void *_args, unsigned int task_id, unsigned int significance)
 {

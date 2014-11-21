@@ -1,5 +1,6 @@
 #ifndef __SGNF_RUNTIME__
 #define __SGNF_RUNTIME__
+#include "constants.h"
 
 #ifndef __TASK__
 #define task_t void*
@@ -9,8 +10,6 @@
 #define SYNC_RATIO 2
 #define SYNC_ALL 4
 
-enum sanity_return_t {SANITY_SUCCESS, SANITY_FAILURE};
-enum significance_value_t {NON_SIGNIFICANT, SIGNIFICANT };
 
 
 task_t* new_task(void (*exec)(void *, unsigned int, unsigned int), void *args, unsigned int size_args ,int (*san)(void *, void *),

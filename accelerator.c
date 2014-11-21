@@ -62,6 +62,7 @@ task_t* get_job(info *me){
       me->redo = element->redo;
       /* vasiliad: gemfi uses this to pause faults when a segfault is detected */
       me->task_id = element->task_id;
+      me->significance = element->significance;
       element->execution_thread = me->my_id;
       element->execution_id = me->id;
     }
@@ -96,10 +97,13 @@ void* main_acc(void *args){
     {
       whoami->flag = TASK_EXECUTING;
 #endif
-
+#ifdef DUAL_TASKS
       whoami->execution(whoami->execution_args, exec_task->task_id, 
           exec_task->significance);
-
+#else
+      whoami->execution(whoami->execution_args, exec_task->task_id, 
+          NON_SIGNIFICANT);
+#endif
 #ifdef ENABLE_CONTEXT
       whoami->flag = TASK_SANITY;
   #ifdef DOUBLE_QUEUES

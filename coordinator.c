@@ -3,6 +3,7 @@
 #include <string.h>
 #include <execinfo.h>
 #include "coordinator.h"
+#include "constants.h"
 #include "list.h"
 #include "task.h"
 #include "group.h"
@@ -109,14 +110,14 @@ void* init_acc(void *args){
   act.sa_sigaction = action;
   act.sa_flags = SA_SIGINFO;
 
-  if ( (sigaction(SIGILL,&act,NULL)<0)||
-      (sigaction(SIGFPE,&act,NULL)<0)||
-      (sigaction(SIGPIPE,&act,NULL)<0)||
-      (sigaction(SIGBUS,&act,NULL)<0)||
+  if ( (sigaction(SIGILL,&sfh,NULL)<0)||
+      (sigaction(SIGFPE,&sfh,NULL)<0)||
+      (sigaction(SIGPIPE,&sfh,NULL)<0)||
+      (sigaction(SIGBUS,&sfh,NULL)<0)||
       (sigaction(SIGUSR1,&act,NULL)<0)||
       (sigaction(SIGUSR2,&act,NULL)<0)||
       (sigaction(SIGSEGV,&sfh,NULL)<0)||
-      (sigaction(SIGSYS,&act,NULL)<0) ) {
+      (sigaction(SIGSYS,&sfh,NULL)<0) ) {
     perror("Could not assign signal handlers\n");
     exit(0);
   }

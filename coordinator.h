@@ -23,8 +23,8 @@ typedef struct info_t{
   // unique runtime provided id for this worker
   unsigned int id;
 
-  // currently executed task ( used for gemfi identification purposes )
-  unsigned int task_id;
+  // vasiliad: currently executed task ( used for gemfi identification purposes )
+  unsigned int task_id, significance;
   
   // variable used by approximate workers. 
   // It is mainly used as a safe-guard protecting the

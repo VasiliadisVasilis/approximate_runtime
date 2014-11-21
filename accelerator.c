@@ -81,10 +81,13 @@ void* main_acc(void *args){
     // if a fault is detected I am going to 
     // return to the following line
 #ifdef ENABLE_CONTEXT
+  #ifdef DOUBLE_QUEUES
     if ( whoami->reliable == NON_RELIABLE)
+  #endif
     {
       getcontext(&(whoami->context));
     }
+    
     if(whoami->flag == TASK_NONE)
     {
       whoami->flag = TASK_EXECUTING;
@@ -96,7 +99,9 @@ void* main_acc(void *args){
 
 #ifdef ENABLE_CONTEXT
       whoami->flag = TASK_SANITY;
+  #ifdef DOUBLE_QUEUES
       if ( whoami->reliable == NON_RELIABLE )
+  #endif
       {
         setcontext(&(whoami->context));
       }

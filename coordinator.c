@@ -61,7 +61,6 @@ void my_action(int sig, siginfo_t* siginfo, void *context){
 void action(int sig, siginfo_t* siginfo, void *context){
   int i;
   pthread_t my_id = pthread_self();
-
   for ( i = 0 ; i < total_workers ; i++){
     if(my_id == my_threads[i].my_id ){
       if(my_threads[i].flag == 1){
@@ -80,6 +79,7 @@ void action(int sig, siginfo_t* siginfo, void *context){
 
 void* init_acc(void *args){
 #ifdef ENABLE_SIGNALS
+  printf("Signal 1\n");
   struct sigaction act;
   
   memset(&act, 0, sizeof(act));

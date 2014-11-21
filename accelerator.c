@@ -83,7 +83,9 @@ void* main_acc(void *args){
 #ifdef ENABLE_CONTEXT
   #ifdef DOUBLE_QUEUES
     if ( whoami->reliable == NON_RELIABLE)
-  #endif
+ #else
+    if ( exec_task->significance == NON_SIGNIFICANT )
+ #endif
     {
       getcontext(&(whoami->context));
     }
@@ -101,6 +103,8 @@ void* main_acc(void *args){
       whoami->flag = TASK_SANITY;
   #ifdef DOUBLE_QUEUES
       if ( whoami->reliable == NON_RELIABLE )
+  #else
+      if ( exec_task->significance == NON_SIGNIFICANT )
   #endif
       {
         setcontext(&(whoami->context));

@@ -54,8 +54,10 @@ int initializeHost(LDPC *Code)
   Pi = (unsigned int *)malloc(sizeof(int)*4*Code->N*Code->Depth);
 
 
-  for(i=0;i<Code->Depth*Code->N;i++){
-    for(j=0;j<4;j++){
+  for(i=0;i<Code->Depth*Code->N;i++)
+  {
+    for(j=0;j<4;j++)
+    {
       Pi[i*4] = ((Pi[i*4] << 8) & 0xFFFFFF00) | ((Lpn + Code->Offset) & 0x000000FF);
       Pi[i*4+1] = ((Pi[i*4+1] << 8) & 0xFFFFFF00) | ((Lpn + Code->Offset) & 0x000000FF);
       Pi[i*4+2] = ((Pi[i*4+2] << 8) & 0xFFFFFF00) | ((Lpn + Code->Offset) & 0x000000FF);
@@ -64,7 +66,8 @@ int initializeHost(LDPC *Code)
   }
 
   for(i=0;i<Code->Depth*Code->N;i++)
-    for(j=0;j<Code->BNW;j++){
+    for(j=0;j<Code->BNW;j++)
+    {
       Lq[(i*Code->BNW+j)*4]=Pi[i*4];
       Lq[(i*Code->BNW+j)*4+1]=Pi[i*4+1];
       Lq[(i*Code->BNW+j)*4+2]=Pi[i*4+2];
@@ -83,7 +86,8 @@ int execute_kernels(int iterations, int tasks)
   timer_reset(h_kernel_timer);
   
   timer_start(h_kernel_timer);
-  for(i=0;i<iterations;i++){
+  for(i=0;i<iterations;i++)
+  {
     for ( j =0; j<tasks; ++j )
     {
       start = j*oclCode->M/(double)tasks;
@@ -131,7 +135,6 @@ int execute_kernels(int iterations, int tasks)
   return 0;
 }
 
-
 /* 
  * \brief Releases program's resources 
  */
@@ -143,8 +146,8 @@ void cleanupHost(void)
   free(oclCode);
 }
 
-int ReadAlistFile(LDPC *Code,const char *AlistFile){
-
+int ReadAlistFile(LDPC *Code,const char *AlistFile)
+{
   FILE *fd;
   int i,j,k;
   int test;

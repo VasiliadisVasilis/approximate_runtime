@@ -31,7 +31,8 @@ int cmp_tasks(void *args1, void *args2){
 // Task descriptor allocator
 // I am just filling the descriptor's variables values.
 
-task_t* new_task(void  (*exec)(void *), void *args, unsigned int size_args ,int (*san)(void *, void *),
+task_t* new_task(void  (*exec)(void *, unsigned int, unsigned int), void *args, 
+    unsigned int size_args ,int (*san)(void *, void *),
     void *san_args, unsigned int san_size_args , unsigned char sig, unsigned int redo){
   static int id = 0;
   task_t *new = (task_t *) calloc(1,sizeof(task_t));

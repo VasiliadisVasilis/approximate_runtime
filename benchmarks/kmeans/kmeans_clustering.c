@@ -310,13 +310,24 @@ void process_point(void* _args)
   end = end > npoints ? npoints : end;
   for (i=start; i<end; i++) 
   {
-    /* find the index of nestest cluster centers */					
-    index = find_nearest_point(feature[i],
-        i,
-        nfeatures,
-        clusters,
-        nclusters);				
-    /* if membership changes, increase delta by 1 */
+    if ( rand()%100 > 90 )
+    {
+      index = find_nearest_point(NULL,
+          i,
+          nfeatures,
+          clusters,
+          nclusters);				
+    }
+    else
+    {
+      /* find the index of nestest cluster centers */					
+      index = find_nearest_point(feature[i],
+          i,
+          nfeatures,
+          clusters,
+          nclusters);				
+    }
+      /* if membership changes, increase delta by 1 */
     if (membership[i] != index)
     {
       membership[i] = index;
@@ -415,6 +426,11 @@ void process_cluster(void *_args)
 
   p->old_points = p->old_points+ p->new_points;
   p->new_points = 0;
+  if ( p->old_points <= 0 )
+  {
+    p->old_points = 1;
+    memset(clusters[tid], feature[p->points[0]],  sizeof(float)*nfeatures);
+  }
   assert(p->old_points>0);
   /* vasiliad: update the center */
 #ifdef OPTIMIZED_CENTER_COMPUTATION
@@ -670,7 +686,7 @@ float** kmeans_clustering(float **_feature,    /* in: [npoints][nfeatures] */
     }
 
     printf("%d\n", points);
-    assert(points == npoints);
+    //assert(points == npoints);
 #ifdef CALCULATE_RADIUS
     for ( i=0; i<nclusters; ++i)
     {

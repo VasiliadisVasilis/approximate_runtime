@@ -21,7 +21,10 @@
 
 
 
-void CN_Processing( unsigned int *Lq,  unsigned int *Lr, int *ligacoesf,unsigned int tid,unsigned int set, unsigned int set_max){
+void 
+CN_Processing( unsigned int *Lq,  unsigned int *Lr, int *ligacoesf,unsigned int tid,
+  unsigned int set, unsigned int set_max)
+{
 
   //unsigned int tid = get_global_id(0);
 

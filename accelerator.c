@@ -60,6 +60,8 @@ task_t* get_job(info *me){
       me->sanity_args= element->sanity_args;
       me->checked_results = 0;
       me->redo = element->redo;
+      /* vasiliad: gemfi uses this to pause faults when a segfault is detected */
+      me->task_id = element->task_id;
       element->execution_thread = me->my_id;
       element->execution_id = me->id;
     }
@@ -95,9 +97,8 @@ void* main_acc(void *args){
       whoami->flag = TASK_EXECUTING;
 #endif
 
-      ENABLE_FI(exec_task)
-      whoami->execution(whoami->execution_args);
-      DISABLE_FI(exec_task)
+      whoami->execution(whoami->execution_args, exec_task->task_id, 
+          exec_task->significance);
 
 #ifdef ENABLE_CONTEXT
       whoami->flag = TASK_SANITY;
@@ -117,7 +118,8 @@ void* main_acc(void *args){
       whoami->return_val = SANITY_SUCCESS;
       if( whoami->sanity )
       {
-        whoami->return_val = whoami->sanity(whoami->execution_args, whoami->sanity_args);  
+        whoami->return_val = whoami->sanity(whoami->execution_args,
+            whoami->sanity_args);  
       }
       if ( whoami->return_val != SANITY_SUCCESS  && whoami->redo > 0 )
       {

@@ -30,8 +30,8 @@ struct IDCT_TASK_ARGS_T
 int dct_trc(void *args, void *not_used_at_all);
 int _dct_trc(long _r, long _c, long _i, long _j);
 
-void dct_task(void* args);
-void idct_task(void* args);
+void dct_task(void* args, unsigned int task_id, unsigned int significance);
+void idct_task(void* args, unsigned int task_id, unsigned int significance);
 void _idct_task(long _r, long _c);
 void _dct_task(long _r, long _c, long _i, long _j);
 
@@ -126,10 +126,21 @@ int _dct_trc(long _r, long _c, long _i, long _j)
   return SANITY_SUCCESS;
 }
 
-void dct_task(void *_args)
+void dct_task(void *_args, unsigned int task_id, unsigned int significance)
 {
   dct_task_args_t *args = (dct_task_args_t*) _args;
+  
+  if ( significance == NON_SIGNIFICANT )
+  {
+    fi_activate_inst(task_id, START);
+  }
+
   _dct_task(args->r, args->c, args->i, args->j);
+
+  if ( significance == NON_SIGNIFICANT )
+  {
+    fi_activate_inst(task_id, PAUSE);
+  }
 }
 
 void _dct_task(long _r, long _c, long _i, long _j)
@@ -173,8 +184,11 @@ void spawn_dct_task(long r, long c, long i, long j, uint8_t significance)
   args.i = i;
   args.j = j;
 
-  task = new_task(dct_task, &args, sizeof(args), dct_trc, NULL, 0,
-        significance, 0);
+#ifdef SANITY
+  task = new_task(dct_task, &args, sizeof(args), dct_trc, NULL, 0, significance, 0);
+#else
+  task = new_task(dct_task, &args, sizeof(args), NULL, NULL, 0, significance, 0);
+#endif
   push_task(task, "dct");
 }
 
@@ -218,7 +232,7 @@ void DCT(unsigned char pic[], double dct[], double COS[], double C[]) {
 }
 
 
-void idct_task(void *_args)
+void idct_task(void *_args, unsigned int task_id, unsigned int significance)
 {
   idct_task_args_t *args = (idct_task_args_t*) _args;
   _idct_task(args->r, args->c);

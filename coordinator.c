@@ -76,13 +76,36 @@ void action(int sig, siginfo_t* siginfo, void *context){
 }
 
 
+void seg_fault_action(int sig, siginfo_t* siginfo, void *context){
+  int i;
+
+  pthread_t my_id = pthread_self();
+  for ( i = 0 ; i < total_workers ; i++){
+    if(my_id == my_threads[i].my_id ){
+      if(my_threads[i].flag == 1){
+        DISABLE_FI( (my_threads+i) );
+        setcontext(&(my_threads[i].context));
+        return ;
+      }
+      else{
+        break;
+      }
+    }
+  }
+  return ;
+}
+
 
 void* init_acc(void *args){
 #ifdef ENABLE_SIGNALS
-  printf("Signal 1\n");
   struct sigaction act;
+  struct sigaction sfh;
   
   memset(&act, 0, sizeof(act));
+  memset(&sfh, 0, sizeof(sfh));
+  sfh.sa_sigaction = seg_fault_action;
+  sfh.sa_flags = SA_SIGINFO;
+
   act.sa_sigaction = action;
   act.sa_flags = SA_SIGINFO;
 
@@ -92,7 +115,7 @@ void* init_acc(void *args){
       (sigaction(SIGBUS,&act,NULL)<0)||
       (sigaction(SIGUSR1,&act,NULL)<0)||
       (sigaction(SIGUSR2,&act,NULL)<0)||
-      (sigaction(SIGSEGV,&act,NULL)<0)||
+      (sigaction(SIGSEGV,&sfh,NULL)<0)||
       (sigaction(SIGSYS,&act,NULL)<0) ) {
     perror("Could not assign signal handlers\n");
     exit(0);

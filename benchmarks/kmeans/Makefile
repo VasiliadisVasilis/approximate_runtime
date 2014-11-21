@@ -9,7 +9,7 @@ kmeans: cluster.o getopt.o kmeans.o kmeans_clustering.o runtime
 	$(CC) $(CFLAGS) $(LIB) $(INCLUDE) cluster.o getopt.o kmeans.o kmeans_clustering.o  -o kmeans $(LDFLAGS)
 
 runtime:
-	make -C ../../
+	make -C ../../ "CFLAGS=$(CFLAGS)"
 
 %.o: %.[ch]
 	$(CC) $(CFLAGS) $(LIB) $(INCLUDE) $< -c

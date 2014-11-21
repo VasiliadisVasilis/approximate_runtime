@@ -27,7 +27,9 @@ typedef struct tasks{
   
   //The execution function of the task coupled with the arguments
   void *execution_args;
-  void (*execution) (void *);
+  /* vasiliad: extra args: task_id, significance gemfi needs this info to turn
+               fi on/off INSIDE the task */
+  void (*execution) (void *, unsigned int, unsigned int);
   
   //Sanity function of the task
   int (*sanity_func) (void *,void *);
@@ -62,7 +64,7 @@ typedef struct tasks{
 
 
 //Create a task and assign the task to a group
-task_t* new_task(void (*exec)(void *), void *args, unsigned int size_args ,int (*san)(void *, void *),
+task_t* new_task(void (*exec)(void *, unsigned int, unsigned int), void *args, unsigned int size_args ,int (*san)(void *, void *),
 		  void *san_args, unsigned int san_size_args , unsigned char sig, unsigned int redo);
 
 #ifdef DEPENDENCIES  

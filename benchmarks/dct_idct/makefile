@@ -1,4 +1,4 @@
-override CFLAGS+= -pthread -Wall  -O3 --static# -DDEBUG
+override CFLAGS+= -pthread -Wall  --static -O3 # -DDEBUG
 #use CFLAGS = -DGEMFI to enable gemfi faults and -DSANITY to enable trc
 LDFLAGS=-lrtsrel -lm -lrt -lm5
 LIB=-L../../ -L../../fi

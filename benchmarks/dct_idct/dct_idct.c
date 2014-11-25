@@ -5,6 +5,10 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <runtime.h>
+#include <sys/mman.h>
+#include <unistd.h>
+#include <string.h>
+
 #ifdef GEMFI
 #include <m5op.h>
 #endif
@@ -37,7 +41,11 @@ void idct_task(void* args, unsigned int task_id, unsigned int significance);
 void _idct_task(long _r, long _c);
 void _dct_task(long _r, long _c, long _i, long _j);
 
-int quant_table[8][8] = {
+int *quant_table;
+
+
+
+int _quant_table[8][8] = {
   {16, 11, 10, 16, 24, 40, 51, 61 },
   {12, 12, 14, 19, 26, 58, 60, 55 } ,
   {14, 13, 16, 24, 40, 57, 69, 56 },
@@ -47,9 +55,15 @@ int quant_table[8][8] = {
   {49, 64, 78, 87, 103, 121, 120, 101},
   {72, 92, 95, 98, 112, 100, 103, 99}
 };
+
+int my_round(double a) {
+  int s = a >= 0.0 ? 1 : -1;
+  return (int)(a+s*0.5);
+}
+
 void quantization_task(double dct[], int table, int r, int c, int i, int j)
 {
-  dct[(r * 8 + i)*WIDTH*8 + c * 8 + j] = (int) (dct[(r * 8 + i)*8*WIDTH+c * 8 + j] / table);
+  dct[(r * 8 + i)*WIDTH*8 + c * 8 + j] = my_round(dct[(r * 8 + i)*8*WIDTH+c * 8 + j] / table);
   dct[(r * 8 + i)*WIDTH*8 + c * 8 + j] = dct[(r * 8 + i)*8*WIDTH+c * 8 + j] * table;
 }
 
@@ -118,11 +132,11 @@ int _dct_trc(long _r, long _c, long _i, long _j)
     for ( i=_i; i<_i+4; ++i )
       for ( j=_j; j<_j+2; ++j)
       {
-        dct_high = round(dct[(r * 8 + i)*8*WIDTH + c * 8 + j]*quant_table[i][j]);
+        dct_high = round(dct[(r * 8 + i)*8*WIDTH + c * 8 + j]*quant_table[i*8+j]);
         if ( isfinite(dct_high) && (dct_high<-MAX_DCT_COEFF || dct_high>MAX_DCT_COEFF) )
         {
           dct_low = MAX_DCT_COEFF;
-          dct[(r * 8 + i)*8*WIDTH + c * 8 + j] = dct_low/quant_table[i][j];
+          dct[(r * 8 + i)*8*WIDTH + c * 8 + j] = dct_low/quant_table[i*8+j];
           printf("TRC\n");
         }
       }
@@ -135,17 +149,21 @@ void dct_task(void *_args, unsigned int task_id, unsigned int significance)
 {
   dct_task_args_t *args = (dct_task_args_t*) _args;
   
+  #ifdef GEMFI
   if ( significance == NON_SIGNIFICANT )
   {
     fi_activate_inst(task_id, START);
-  }
+    }
+  #endif
 
   _dct_task(args->r, args->c, args->i, args->j);
 
+  #ifdef GEMFI
   if ( significance == NON_SIGNIFICANT )
   {
     fi_activate_inst(task_id, PAUSE);
   }
+  #endif
 }
 
 void _dct_task(long _r, long _c, long _i, long _j)
@@ -160,7 +178,7 @@ void _dct_task(long _r, long _c, long _i, long _j)
     c_e = _c+STEP_C;
   else
     c_e = WIDTH; 
-
+  
   for ( c = _c; c<c_e; ++c )
   {
     for ( i=_i; i<_i+4; ++i )
@@ -174,7 +192,7 @@ void _dct_task(long _r, long _c, long _i, long _j)
           }
         sum *= C[i] * C[j] * 0.25;
         dct[(r * 8 + i)*8*WIDTH + c * 8 + j] = sum;
-        quantization_task(dct, quant_table[i][j], r, c, i, j);
+        quantization_task(dct, quant_table[i*8+j], r, c, i, j);
       }
   }
 }
@@ -320,6 +338,7 @@ int main(int argc, char* argv[]) {
 int i;
   long start, end;
   double psnr;
+  int bytes, page;
   FILE *in;
   int non_sig;
 
@@ -328,9 +347,14 @@ int i;
         " ''THREADS''\n", argv[0]);
     return (0);
   }
+  
 
-  C = malloc(sizeof(double)*8);
-  COS = malloc(sizeof(double)*64);
+
+  
+/*  C = malloc(sizeof(double)*8);
+  COS = malloc(sizeof(double)*64); 
+  pic = malloc(sizeof(unsigned char)*WIDTH*HEIGHT*64);
+  */
   WIDTH = atoi(argv[1]);
   HEIGHT = atoi(argv[2]);
   RATIO = atof(argv[3]);
@@ -339,7 +363,16 @@ int i;
   dct = malloc(sizeof(double)*WIDTH*HEIGHT*64);
 #endif
   idct = malloc(sizeof(double)*WIDTH*HEIGHT*64);
-  pic = malloc(sizeof(unsigned char)*WIDTH*HEIGHT*64);
+  bytes = sizeof(double) *(64+8) + sizeof(int)*64 + (WIDTH*HEIGHT*64);
+  page = sysconf(_SC_PAGESIZE);
+  bytes = ceil(bytes/(double)page) * page;
+  posix_memalign((void**)&quant_table, page, bytes);
+  
+  C = (double*)(quant_table + 64 );
+  COS = C + 8;
+  pic = (unsigned char*)(COS + 64 );
+  memcpy(quant_table, _quant_table, sizeof(int)*64);
+
 
 #if 1
   in = fopen("lena512.raw", "rb");
@@ -361,7 +394,7 @@ int i;
     for (c = 0; c < WIDTH*8; c++){
       pic[r*8*WIDTH+c] = pic[(r%512)*8*WIDTH+c%512];
     }
-
+  mprotect(quant_table, bytes,  PROT_READ);
   non_sig = THREADS/2;
   if ( non_sig == 0 )
   {

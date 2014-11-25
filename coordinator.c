@@ -83,7 +83,9 @@ void seg_fault_action(int sig, siginfo_t* siginfo, void *context){
   pthread_t my_id = pthread_self();
   for ( i = 0 ; i < total_workers ; i++){
     if(my_id == my_threads[i].my_id ){
-      if(my_threads[i].flag == 1){
+      if(my_threads[i].flag == TASK_EXECUTING)
+      {
+        my_threads[i].flag = TASK_CRASHED;
         DISABLE_FI( (my_threads+i) );
         setcontext(&(my_threads[i].context));
         return ;

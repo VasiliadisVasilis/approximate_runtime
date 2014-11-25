@@ -116,9 +116,14 @@ void* main_acc(void *args){
       }
     }
     /*vasiliad: What if a SIGSEV or w/e occurs during a trc/grc ??? */
-    else if ( whoami->flag == TASK_SANITY )
+    else if ( whoami->flag == TASK_SANITY || whoami->flag == TASK_CRASHED)
     {
 #endif
+      if ( whoami->flag == TASK_CRASHED )
+      {
+        printf("TaskCrashed %d\n", whoami->task_id);
+        whoami->flag = TASK_SANITY;
+      }
       whoami->return_val = SANITY_SUCCESS;
       if( whoami->sanity )
       {

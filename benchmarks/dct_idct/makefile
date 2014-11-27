@@ -3,7 +3,7 @@ override CFLAGS+= -pthread -Wall  --static -O3 # -DDEBUG
 LDFLAGS=-lrtsrel -lm -lrt -lm5
 LIB=-L../../ -L../../fi
 INCLUDE=-I../../include/ -I../../fi
-override CC=clang
+CC?=clang
 all: runtime dct
 
 runtime:

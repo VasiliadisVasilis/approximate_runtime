@@ -288,7 +288,7 @@ void actual_push(void *_task)
 #endif
 
 #ifdef DOUBLE_QUEUES
-  if ( task->significance )
+  if ( task->significance == SIGNIFICANT )
   {
     group->total_sig_tasks++;
     temp = sig_ready_tasks;
@@ -299,7 +299,7 @@ void actual_push(void *_task)
     temp = non_sig_ready_tasks;
   }
 #else
-  if ( task->significance )
+  if ( task->significance == SIGNIFICANT)
   {
     group->total_sig_tasks++;
   }
@@ -324,7 +324,14 @@ void actual_push(void *_task)
   }
 #else
   pthread_mutex_lock(&temp->lock);
-  add_pool_tail(temp,task);
+  if ( task->significance == NON_SIGNIFICANT )
+  {
+    add_pool_tail(temp,task);
+  }
+  else
+  {
+    add_pool_head(temp,task);
+  }
   pthread_mutex_unlock(&temp->lock);
 #endif
 
@@ -355,14 +362,14 @@ void push_task(task_t *task, char *name){
   }
   group = create_group(name);
   task->my_group = group;
-  if(task->significance == 1)
+  if(task->significance == SIGNIFICANT)
     group->total_sig_tasks++;
-  if(task->significance == 0)
+  if(task->significance == NON_SIGNIFICANT)
     group->total_non_sig_tasks++;
 
   group->pending_num++;
 #ifdef DOUBLE_QUEUES
-  if(task->significance == 0)
+  if(task->significance == NON_SIGNIFICANT)
   {
     temp= non_sig_ready_tasks;
   }
@@ -387,7 +394,14 @@ void push_task(task_t *task, char *name){
   }
 #else
   pthread_mutex_lock(&temp->lock);
-  add_pool_tail(temp,task);
+  if ( task->significance == NON_SIGNIFICANT )
+  {
+    add_pool_tail(temp,task);
+  }
+  else
+  {
+    add_pool_head(temp,task);
+  }
   pthread_mutex_unlock(&temp->lock);
 #endif
 

@@ -1,7 +1,8 @@
+#make "CFLAGS=-DDUAL_TASKS -DENABLE_CONTEXT -DENABLE_SIGNALS " for a DSN2015
 #make "CFLAGS=-DDUAL_TASKS -DENABLE_CONTEXT -DENABLE_SIGNALS -DDOUBLE_QUEUES" for a scorpio like runtime
 #make "CFLAGS=-DGEMFI" to enable fault injection to tasks
 #make "CFLAGS=-DGEMFI -DDUAL_TASKS" injects faults only to non-reliable tasks
-CC=clang
+CC=gcc
 AR=ar
 override CFLAGS+= --static -c -Wall -g -I include/ -O3 #-DDEBUG 
 LDFLAGS= -lpthread -lOpenCL -ldl -lrt -fPIC -lm5

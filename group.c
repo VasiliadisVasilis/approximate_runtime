@@ -111,7 +111,7 @@ void force_termination(void *args){
   task_t *task = (task_t*) args;
   pthread_mutex_lock(&task->lock);
   pthread_t acc = task->execution_thread;
-  if(my_threads[task->execution_id].flag == 1){
+  if(task->significance == NON_SIGNIFICANT){
     pthread_kill(acc,SIGUSR1);
   }
   pthread_mutex_unlock(&task->lock);
@@ -175,7 +175,7 @@ int wait_group_time(group_t *group, unsigned int time_ms)
             pthread_mutex_lock(&group->executing_q->lock);
             exec_on_elem(group->executing_q,force_termination); 
             pthread_mutex_unlock(&group->executing_q->lock);
-            group->terminated = 1;
+            group->terminated = 0;
             #warning this might be wrong ...
             pthread_mutex_unlock(&group->lock);
           }

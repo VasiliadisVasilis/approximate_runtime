@@ -20,6 +20,14 @@ extern info *my_threads;
 extern int debug_flag ;
 extern unsigned int total_workers;
 
+
+long my_time()
+{
+  struct timeval tv;
+  gettimeofday(&tv, NULL);
+  return tv.tv_sec*1000000+tv.tv_usec;
+}
+
 int whoami(){
   int i;
   pthread_t my_id = pthread_self();
@@ -160,7 +168,11 @@ int wait_group_time(group_t *group, unsigned int time_ms)
   do 
   {
     debug("Wait on watchdog...\n");
+    long start_time=my_time();
     ret =pthread_cond_timedwait(&group->condition, &group->lock, &watchdog);
+    long end_time=my_time();
+
+  printf("  Waiting for =%g\n", (double)(end_time-start_time));
     if (ret == ETIMEDOUT) 
     {
       debug("Wait on watchdog...Done\n");
@@ -180,7 +192,7 @@ int wait_group_time(group_t *group, unsigned int time_ms)
         debug("Wait for significant tasks...Done\n");
         if (removed)
         {
-          printf("[RTS] Kill non-significant tasks. %d\n", removed);
+          printf("[RTS] Kill non-significant tasks. #A %d\n", removed);
         }
         break;
       }

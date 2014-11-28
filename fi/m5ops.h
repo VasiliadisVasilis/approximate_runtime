@@ -53,7 +53,9 @@
 #define switchcpu_func          0x52
 #define addsymbol_func          0x53
 #define panic_func              0x54
+//ALTERCODE
 
+#define gemfi_faulty_func	0x56
 #define fi_activate_func	0x57
 #define fi_get_pc		0x67
 #define init_fi_system		0x58

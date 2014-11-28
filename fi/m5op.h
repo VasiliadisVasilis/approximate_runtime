@@ -85,6 +85,7 @@ uint64_t m5a_getid(void);
 
 //ALTERCODE
 uint64_t m5_whofailed();
+uint64_t gemfi_faulty();
 void fi_activate_inst(uint64_t threadid, uint64_t request);
 void fi_read_init_all();
 #define get_Pc_address() \

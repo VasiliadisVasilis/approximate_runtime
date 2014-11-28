@@ -78,7 +78,7 @@ double *dct;
 
 unsigned char *pic;
 
-long my_time()
+long this_time()
 {
   struct timeval tv;
   gettimeofday(&tv, NULL);
@@ -425,7 +425,7 @@ int main(int argc, char* argv[]) {
 #warning compiling for gemfi execution
   m5_dumpreset_stats(0,0);
 #else
-  start = my_time();
+  start = this_time();
 #endif
   printf("Address is %p\n",dct);
   DCT(pic, dct, COS, C);
@@ -440,7 +440,7 @@ int main(int argc, char* argv[]) {
 #else
   //  fillInDCT(dct);
   IDCT();
-  end = my_time();
+  end = this_time();
   psnr = MSE_PSNR();
   fprintf(stderr, "===Approx DCT===\n");
   fprintf(stderr, "  Duration=%g\n", (double)(end-start)/1000000.0);

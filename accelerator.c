@@ -1,6 +1,7 @@
 #include <pthread.h>
 #include <stdio.h>
 #include <assert.h>
+#include <stdint.h>
 #include "coordinator.h"
 #include "task.h"
 /* Include this *after* task.h if you wish to access task_t fields */
@@ -75,7 +76,8 @@ task_t* get_job(info *me){
 void* main_acc(void *args){
   info *whoami = (info*) args;
   task_t *exec_task;
-  
+  uint64_t am_i_faulty;
+
   pthread_mutex_lock(&whoami->my_mutex);
   while(1)
   {
@@ -84,15 +86,15 @@ void* main_acc(void *args){
     // if a fault is detected I am going to 
     // return to the following line
 #ifdef ENABLE_CONTEXT
-  #ifdef DOUBLE_QUEUES
+#ifdef DOUBLE_QUEUES
     if ( whoami->reliable == NON_RELIABLE)
- #else
-    if ( exec_task->significance == NON_SIGNIFICANT )
- #endif
-    {
-      getcontext(&(whoami->context));
-    }
-    
+#else
+      if ( exec_task->significance == NON_SIGNIFICANT )
+#endif
+      {
+        getcontext(&(whoami->context));
+      }
+
     if(whoami->flag == TASK_NONE)
     {
       whoami->flag = TASK_EXECUTING;
@@ -106,41 +108,52 @@ void* main_acc(void *args){
 #endif
 #ifdef ENABLE_CONTEXT
       whoami->flag = TASK_SANITY;
-  #ifdef DOUBLE_QUEUES
+#ifdef DOUBLE_QUEUES
       if ( whoami->reliable == NON_RELIABLE )
-  #else
-      if ( exec_task->significance == NON_SIGNIFICANT )
-  #endif
-      {
-        setcontext(&(whoami->context));
-      }
+#else
+        if ( exec_task->significance == NON_SIGNIFICANT )
+#endif
+        {
+          setcontext(&(whoami->context));
+        }
     }
     /*vasiliad: What if a SIGSEV or w/e occurs during a trc/grc ??? */
     else if ( whoami->flag == TASK_SANITY || whoami->flag == TASK_CRASHED)
     {
 #endif
+      whoami->return_val = SANITY_SUCCESS;
       if ( whoami->flag == TASK_CRASHED )
       {
-        printf("TaskCrashed %d\n", whoami->task_id);
-        whoami->flag = TASK_SANITY;
+        printf("[RTS] TaskCrashed %d\n", whoami->task_id);
       }
-      whoami->return_val = SANITY_SUCCESS;
-      if( whoami->sanity )
+#ifdef GEMFI
+      am_i_faulty = gemfi_faulty();
+      if ( am_i_faulty )
       {
-        whoami->return_val = whoami->sanity(whoami->execution_args,
-            whoami->sanity_args);  
+        printf("[RTS] Fault detected %d\n", whoami->task_id);
       }
-      if ( whoami->return_val != SANITY_SUCCESS  && whoami->redo > 0 )
+      #warning Will only execute a sanity check if the task has crashed
+      if ( (whoami->flag == TASK_CRASHED || am_i_faulty) && whoami->sanity )
       {
-        whoami->redo--;
-        whoami->flag = TASK_NONE;
-        setcontext(&(whoami->context));
-      }
-#ifdef ENABLE_CONTEXT
-    }
+#else
+        if ( whoami->flag == TASK_CRASHED && whoami->sanity )
+        {
 #endif
-    finished_task(exec_task);
-    whoami->flag = TASK_NONE;
+          whoami->return_val = whoami->sanity(whoami->execution_args,
+              whoami->sanity_args);  
+        }
+        if ( whoami->return_val != SANITY_SUCCESS  && whoami->redo > 0 )
+        {
+          whoami->redo--;
+          whoami->flag = TASK_NONE;
+          setcontext(&(whoami->context));
+        }
+#ifdef ENABLE_CONTEXT
+      }
+#endif
+
+      finished_task(exec_task);
+      whoami->flag = TASK_NONE;
+    }
   }
-}
 

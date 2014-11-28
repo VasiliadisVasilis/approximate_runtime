@@ -153,7 +153,7 @@ int wait_group_time(group_t *group, unsigned int time_ms)
 
   clock_gettime(CLOCK_REALTIME, &watchdog);
   secs = watchdog.tv_sec + time_ms/1000;
-  nsecs = watchdog.tv_nsec + (time_ms % 1000)*100000;
+  nsecs = watchdog.tv_nsec + (time_ms % 1000)*1000000;
   watchdog.tv_sec = secs + nsecs / 1000000000L;
   watchdog.tv_nsec = nsecs % 1000000000L;
   removed = 0;

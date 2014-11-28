@@ -12,7 +12,7 @@ runtime:
 dct: dct_idct.o
 	gcc ${CFLAGS} ${LIB} dct_idct.o -o dct  ${LDFLAGS}
 dct_idct.o: dct_idct.c
-	$(CC) ${CFLAGS} ${LIB} ${INCLUDE} -DSTEP_C=4 dct_idct.c -c 
+	$(CC) ${CFLAGS} ${LIB} ${INCLUDE} -DSTEP_C=16 dct_idct.c -c 
 
 clean:
 	rm -f decoded_image.raw decoded_image.jpg PSNR.txt dct_idct_omp  approx_bddt exact_bddt perfor_bddt dct dct_idct.o

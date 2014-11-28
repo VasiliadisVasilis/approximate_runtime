@@ -78,7 +78,7 @@ double *dct;
 
 unsigned char *pic;
 
-long my_time()
+long this_time()
 {
   struct timeval tv;
   gettimeofday(&tv, NULL);
@@ -264,7 +264,7 @@ void DCT(unsigned char pic[], double dct[], double COS[], double C[]) {
               spawn_dct_task(r, c, 6, 4, 50);
               spawn_dct_task(r, c, 6, 6, 40);*/
     }
-  wait_group("dct", NULL, NULL, SYNC_RATIO|SYNC_TIME, 200, 0, 1.0f, 0);
+  wait_group("dct", NULL, NULL, SYNC_RATIO|SYNC_TIME, 800, 0, 1.0f, 0);
   //#pragma taskwait all label(dct)
 
   return;
@@ -425,7 +425,7 @@ int main(int argc, char* argv[]) {
 #warning compiling for gemfi execution
   m5_dumpreset_stats(0,0);
 #else
-  start = my_time();
+  start = this_time();
 #endif
   printf("Address is %p\n",dct);
   DCT(pic, dct, COS, C);
@@ -440,7 +440,7 @@ int main(int argc, char* argv[]) {
 #else
   //  fillInDCT(dct);
   IDCT();
-  end = my_time();
+  end = this_time();
   psnr = MSE_PSNR();
   fprintf(stderr, "===Approx DCT===\n");
   fprintf(stderr, "  Duration=%g\n", (double)(end-start)/1000000.0);

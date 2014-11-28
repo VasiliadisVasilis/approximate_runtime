@@ -148,22 +148,38 @@ int _dct_trc(long _r, long _c, long _i, long _j)
 void dct_task(void *_args, unsigned int task_id, unsigned int significance)
 {
   dct_task_args_t *args = (dct_task_args_t*) _args;
-  
-  #ifdef GEMFI
+
+#ifdef GEMFI
   if ( significance == NON_SIGNIFICANT )
   {
     fi_activate_inst(task_id, START);
-    }
-  #endif
+  }
+#endif
 
+#if 0
+  long start;
+  if ( significance == NON_SIGNIFICANT )
+  {
+    start = my_time();
+
+    while ( my_time() - start < 10000 * 1 );
+  }
+  else
+  {
+    start = my_time();
+
+    while ( my_time() - start < 100000 * 1 );
+    printf("sig\n");
+  }
+#endif
   _dct_task(args->r, args->c, args->i, args->j);
 
-  #ifdef GEMFI
+#ifdef GEMFI
   if ( significance == NON_SIGNIFICANT )
   {
     fi_activate_inst(task_id, PAUSE);
   }
-  #endif
+#endif
 }
 
 void _dct_task(long _r, long _c, long _i, long _j)
@@ -178,7 +194,7 @@ void _dct_task(long _r, long _c, long _i, long _j)
     c_e = _c+STEP_C;
   else
     c_e = WIDTH; 
-  
+
   for ( c = _c; c<c_e; ++c )
   {
     for ( i=_i; i<_i+4; ++i )
@@ -201,7 +217,7 @@ void spawn_dct_task(long r, long c, long i, long j, uint8_t significance)
 {
   task_t *task;
   dct_task_args_t args;
-  
+
   args.r = r;
   args.c = c;
   args.i = i;
@@ -221,7 +237,7 @@ void spawn_dct_task(long r, long c, long i, long j, uint8_t significance)
    90  85  75  60
    80  75  60  50
    70  60  50  40
-*/
+ */
 
 void DCT(unsigned char pic[], double dct[], double COS[], double C[]) {
 
@@ -235,22 +251,22 @@ void DCT(unsigned char pic[], double dct[], double COS[], double C[]) {
       spawn_dct_task(r, c, 0, 2, 60  < RATIO*100);
       spawn_dct_task(r, c, 0, 4, 50  < RATIO*100);
       spawn_dct_task(r, c, 0, 6, 40  < RATIO*100);
-/*    spawn_dct_task(r, c, 2, 0, 90);
-      spawn_dct_task(r, c, 2, 2, 85);
-      spawn_dct_task(r, c, 2, 4, 75);
-      spawn_dct_task(r, c, 2, 6, 60);*/
+      /*    spawn_dct_task(r, c, 2, 0, 90);
+            spawn_dct_task(r, c, 2, 2, 85);
+            spawn_dct_task(r, c, 2, 4, 75);
+            spawn_dct_task(r, c, 2, 6, 60);*/
       spawn_dct_task(r, c, 4, 0, 60  < RATIO*100);
       spawn_dct_task(r, c, 4, 2, 50  < RATIO*100);
       spawn_dct_task(r, c, 4, 4, 40  < RATIO*100);
       spawn_dct_task(r, c, 4, 6, 30  < RATIO*100);
-/*      spawn_dct_task(r, c, 6, 0, 70);
-      spawn_dct_task(r, c, 6, 2, 60);
-      spawn_dct_task(r, c, 6, 4, 50);
-      spawn_dct_task(r, c, 6, 6, 40);*/
+      /*      spawn_dct_task(r, c, 6, 0, 70);
+              spawn_dct_task(r, c, 6, 2, 60);
+              spawn_dct_task(r, c, 6, 4, 50);
+              spawn_dct_task(r, c, 6, 6, 40);*/
     }
-  wait_group("dct", NULL, NULL, SYNC_RATIO, 0, 0, 1.0f, 0);
+  wait_group("dct", NULL, NULL, SYNC_RATIO|SYNC_TIME, 200, 0, 1.0f, 0);
   //#pragma taskwait all label(dct)
- 
+
   return;
 }
 
@@ -303,9 +319,9 @@ void IDCT() {
     }
 
   wait_group("idct", NULL, NULL, SYNC_RATIO, 0, 0, 1.0f, 0);
- // freopen("decoded_image.raw", "wb", stdout);
- out = fopen("decoded_image.raw", "wb");
- assert(out);
+  // freopen("decoded_image.raw", "wb", stdout);
+  out = fopen("decoded_image.raw", "wb");
+  assert(out);
   for (r = 0; r < N; r++)
     for (c = 0; c < N; c++)
       fputc(idct[r*WIDTH*8+c], out);
@@ -327,15 +343,15 @@ double MSE_PSNR() {
 }
 
 void fillInDCT(double *dct){
-	FILE *fd = fopen("ApplicationOutput","rb");
-	fread(dct,sizeof(double),512*512,fd);
-	fclose(fd);
+  FILE *fd = fopen("ApplicationOutput","rb");
+  fread(dct,sizeof(double),512*512,fd);
+  fclose(fd);
 }
 
 
 int main(int argc, char* argv[]) {
   int r, c, THREADS;
-int i;
+  int i;
   long start, end;
   double psnr;
   int bytes, page;
@@ -347,14 +363,14 @@ int i;
         " ''THREADS''\n", argv[0]);
     return (0);
   }
-  
 
 
-  
-/*  C = malloc(sizeof(double)*8);
-  COS = malloc(sizeof(double)*64); 
-  pic = malloc(sizeof(unsigned char)*WIDTH*HEIGHT*64);
-  */
+
+
+  /*  C = malloc(sizeof(double)*8);
+      COS = malloc(sizeof(double)*64); 
+      pic = malloc(sizeof(unsigned char)*WIDTH*HEIGHT*64);
+   */
   WIDTH = atoi(argv[1]);
   HEIGHT = atoi(argv[2]);
   RATIO = atof(argv[3]);
@@ -367,7 +383,7 @@ int i;
   page = sysconf(_SC_PAGESIZE);
   bytes = ceil(bytes/(double)page) * page;
   posix_memalign((void**)&quant_table, page, bytes);
-  
+
   C = (double*)(quant_table + 64 );
   COS = C + 8;
   pic = (unsigned char*)(COS + 64 );
@@ -379,6 +395,7 @@ int i;
   assert(in);
   for (r = 0; r < N; r++)
     for (c = 0; c < N; c++){
+      dct[r*N+c] = 0.0;
       assert(fscanf(in, "%c", &pic[r*8*WIDTH+c]));
     }
   fclose(in);
@@ -388,9 +405,9 @@ int i;
       pic[r*8*WIDTH+c] = r%16;
     }
 #endif
-  
+
   init_coef();
- for (r = 0; r < HEIGHT*8; r++)
+  for (r = 0; r < HEIGHT*8; r++)
     for (c = 0; c < WIDTH*8; c++){
       pic[r*8*WIDTH+c] = pic[(r%512)*8*WIDTH+c%512];
     }
@@ -401,27 +418,27 @@ int i;
     non_sig = 1;
   }
 #ifdef GEMFI
-	m5_switchcpu();
+  m5_switchcpu();
 #endif
   init_system(THREADS-non_sig, non_sig);
 #ifdef GEMFI
 #warning compiling for gemfi execution
-m5_dumpreset_stats(0,0);
+  m5_dumpreset_stats(0,0);
 #else
   start = my_time();
 #endif
-printf("Address is %p\n",dct);
- DCT(pic, dct, COS, C);
+  printf("Address is %p\n",dct);
+  DCT(pic, dct, COS, C);
 #ifdef GEMFI
 #warning compiling for gemfi execution
   stop_exec();
   m5_dumpreset_stats(0,0);
   unsigned char *vals = (unsigned char *) dct;
   for ( i = 0 ;  i < WIDTH*HEIGHT*64*sizeof(double) ; i++){
-  	m5_writefile((unsigned long) vals[i],sizeof(unsigned char) ,i);
+    m5_writefile((unsigned long) vals[i],sizeof(unsigned char) ,i);
   }
 #else
-//  fillInDCT(dct);
+  //  fillInDCT(dct);
   IDCT();
   end = my_time();
   psnr = MSE_PSNR();
@@ -431,6 +448,6 @@ printf("Address is %p\n",dct);
   fprintf(stderr, "  Ratio=%g\n", RATIO);
   fprintf(stderr, "=================\n");
 #endif
-   return 0;
+  return 0;
 }
 

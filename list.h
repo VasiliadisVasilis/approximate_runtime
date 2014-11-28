@@ -20,7 +20,7 @@ void* delete_element(pool_t *pool, int (*cmp) (void *,void *),void *args);
 void empty_pool(pool_t *pool);
 void delete_list(pool_t *pool);
 list_t* search(pool_t *pool, int (*cmp) (void *,void *),void *args);
-void exec_on_elem(pool_t *pool,  void (*exec)(void*) );
+int exec_on_elem(pool_t *pool,  int (*exec)(void*) );
 void exec_on_elem_targs(pool_t *pool,  void (*exec)(void*,void *),void* );
 void* remove_element(pool_t *pool, list_t *node, list_t *prev);
 #endif

@@ -18,7 +18,14 @@ extern pool_t *ready_tasks;
 extern pool_t *executing_tasks;
 extern pool_t *finished_tasks;
 pthread_mutex_t global_lock;
-void explicit_sync(void *args);
+int explicit_sync(void *args);
+
+int del_non_signf(void *args1, void *args2)
+{
+  task_t *t = (task_t*) args1;
+
+  return (t->significance == NON_SIGNIFICANT);
+}
 
 int cmp_tasks(void *args1, void *args2){
   task_t *t1 = args1;
@@ -258,23 +265,26 @@ void remove_dependency(void *removed, void *dependent){
 
 #endif
 
-void free_args(void *_task)
+int free_args(void *_task)
 {
   task_t *task = (task_t*) _task;
   if ( task->execution_args )
   {
     free(task->execution_args);
+    return 1;
   }
+
+  return 0;
 }
 
-void actual_push(void *_task)
+int actual_push(void *_task)
 {
   task_t *task = (task_t*) _task;
   group_t *group = task->my_group;
   pool_t *temp;
 
   if ( task->significance == SIGNIFICANT )
-    return;
+    return 0;
 
   task->executed_times = 0;
 #ifdef DEPENDENCIES 
@@ -288,7 +298,7 @@ void actual_push(void *_task)
 #endif
 
 #ifdef DOUBLE_QUEUES
-  if ( task->significance )
+  if ( task->significance == SIGNIFICANT )
   {
     group->total_sig_tasks++;
     temp = sig_ready_tasks;
@@ -299,7 +309,7 @@ void actual_push(void *_task)
     temp = non_sig_ready_tasks;
   }
 #else
-  if ( task->significance )
+  if ( task->significance == SIGNIFICANT)
   {
     group->total_sig_tasks++;
   }
@@ -324,7 +334,14 @@ void actual_push(void *_task)
   }
 #else
   pthread_mutex_lock(&temp->lock);
-  add_pool_tail(temp,task);
+  if ( task->significance == NON_SIGNIFICANT )
+  {
+    add_pool_tail(temp,task);
+  }
+  else
+  {
+    add_pool_head(temp,task);
+  }
   pthread_mutex_unlock(&temp->lock);
 #endif
 
@@ -333,9 +350,11 @@ void actual_push(void *_task)
   pthread_mutex_unlock(&group->pending_q->lock);
   debug("Pushing Task %s%d : %s\n",group->name,task->task_id, 
       task->significance == SIGNIFICANT ? "sig": "non_sig" );
+
+  return 1;
 }
 
-void push_task(task_t *task, char *name){
+int push_task(task_t *task, char *name){
   group_t *group;
   pool_t *temp;
 
@@ -351,18 +370,18 @@ void push_task(task_t *task, char *name){
     pthread_mutex_lock(&pending_tasks->lock);
     add_pool_head(pending_tasks,task);
     pthread_mutex_unlock(&pending_tasks->lock);
-    return;
+    return 1;
   }
   group = create_group(name);
   task->my_group = group;
-  if(task->significance == 1)
+  if(task->significance == SIGNIFICANT)
     group->total_sig_tasks++;
-  if(task->significance == 0)
+  if(task->significance == NON_SIGNIFICANT)
     group->total_non_sig_tasks++;
 
   group->pending_num++;
 #ifdef DOUBLE_QUEUES
-  if(task->significance == 0)
+  if(task->significance == NON_SIGNIFICANT)
   {
     temp= non_sig_ready_tasks;
   }
@@ -387,7 +406,14 @@ void push_task(task_t *task, char *name){
   }
 #else
   pthread_mutex_lock(&temp->lock);
-  add_pool_tail(temp,task);
+  if ( task->significance == NON_SIGNIFICANT )
+  {
+    add_pool_tail(temp,task);
+  }
+  else
+  {
+    add_pool_head(temp,task);
+  }
   pthread_mutex_unlock(&temp->lock);
 #endif
 
@@ -398,10 +424,12 @@ void push_task(task_t *task, char *name){
   debug("Pushing Task %s%d : %s\n",name,task->task_id, 
       task->significance == SIGNIFICANT ? "sig": "non_sig" );
   //  pthread_mutex_unlock(&global_lock);
+  return 1;
 }
 
 
-void finished_task(task_t* task){
+int finished_task(task_t* task)
+{
   task_t *elem;
 
   pthread_mutex_lock(&task->my_group->executing_q->lock);
@@ -428,14 +456,14 @@ void finished_task(task_t* task){
   pthread_mutex_unlock(&task->my_group->executing_q->lock);
   pthread_mutex_unlock(&task->my_group->finished_q->lock);
 
-  explicit_sync(task->my_group);
+  return explicit_sync(task->my_group);
 }
 
 
-void move_q(task_t *task){
+int move_q(task_t *task){
 
   if(!task)
-    return;
+    return 0;
 
   pthread_mutex_lock(&task->my_group->pending_q->lock);
   delete_element(task->my_group->pending_q,cmp_tasks,task);
@@ -445,6 +473,7 @@ void move_q(task_t *task){
   add_pool_head(task->my_group->executing_q,task);
   task->my_group->executing_num++;
   pthread_mutex_unlock(&task->my_group->executing_q->lock);
-
+  
+  return 1;
 }
 

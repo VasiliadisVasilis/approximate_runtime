@@ -126,19 +126,13 @@ int _dct_trc(long _r, long _c, long _i, long _j)
     c_e = _c+STEP_C;
   else
     c_e = WIDTH; 
-
+  printf("[RTS] TRC %ld %ld %ld %ld\n", _r, _c, _i, _j);
   for ( c = _c; c<c_e; ++c )
   {
     for ( i=_i; i<_i+4; ++i )
       for ( j=_j; j<_j+2; ++j)
       {
-        dct_high = round(dct[(r * 8 + i)*8*WIDTH + c * 8 + j]*quant_table[i*8+j]);
-        if ( isfinite(dct_high) && (dct_high<-MAX_DCT_COEFF || dct_high>MAX_DCT_COEFF) )
-        {
-          dct_low = MAX_DCT_COEFF;
-          dct[(r * 8 + i)*8*WIDTH + c * 8 + j] = dct_low/quant_table[i*8+j];
-          printf("TRC\n");
-        }
+        dct[(r * 8 + i)*8*WIDTH + c * 8 + j] = 0;
       }
   }
   return SANITY_SUCCESS;

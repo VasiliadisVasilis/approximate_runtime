@@ -6,7 +6,7 @@
 #include <ucontext.h>
 
 enum ReliabilityMode {NON_RELIABLE, RELIABLE};
-enum TaskStatus {TASK_NONE, TASK_EXECUTING, TASK_SANITY, TASK_CRASHED};
+enum TaskStatus {TASK_NONE, TASK_EXECUTING, TASK_SANITY, TASK_CRASHED, TASK_TERMINATED};
 
 // info_t is the worker descriptor.
 

@@ -118,7 +118,8 @@ void* main_acc(void *args){
         }
     }
     /*vasiliad: What if a SIGSEV or w/e occurs during a trc/grc ??? */
-    else if ( whoami->flag == TASK_SANITY || whoami->flag == TASK_CRASHED)
+    else if ( whoami->flag == TASK_SANITY || whoami->flag == TASK_CRASHED 
+            || whoami->flag == TASK_TERMINATED )
     {
 #endif
       whoami->return_val = SANITY_SUCCESS;
@@ -133,7 +134,8 @@ void* main_acc(void *args){
         printf("[RTS] Fault detected %d\n", whoami->task_id);
       }
       #warning Will only execute a sanity check if the task has crashed
-      if ( (whoami->flag == TASK_CRASHED || am_i_faulty) && whoami->sanity )
+      if ( (whoami->flag == TASK_TERMINATED || whoami->flag == TASK_CRASHED || am_i_faulty) 
+          && whoami->sanity )
       {
 #else
         if ( whoami->flag == TASK_CRASHED && whoami->sanity )

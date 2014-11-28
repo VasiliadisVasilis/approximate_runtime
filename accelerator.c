@@ -138,7 +138,7 @@ void* main_acc(void *args){
           && whoami->sanity )
       {
 #else
-        if ( whoami->flag == TASK_CRASHED && whoami->sanity )
+        if ( (whoami->flag == TASK_TERMINATED || whoami->flag == TASK_CRASHED) && whoami->sanity )
         {
 #endif
           whoami->return_val = whoami->sanity(whoami->execution_args,

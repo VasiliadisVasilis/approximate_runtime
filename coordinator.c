@@ -32,9 +32,9 @@ extern char __executable_start;
 extern char __etext;
 //#endif
 
-void explicit_sync(void *args);
+int explicit_sync(void *args);
 void* main_acc(void *args);
-void finished_task(task_t* task);
+int finished_task(task_t* task);
 
 void print_trace(int nsig)
 {

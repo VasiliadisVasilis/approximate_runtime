@@ -73,10 +73,10 @@ void define_out_dependencies(task_t* task, int number, ...);
 void print_dependecies(task_t *task);
 #endif
 
-void free_args(void *_task);
-void actual_push(void *_task);
-void push_task(task_t* task, char *group);
-void finished_task(task_t* task);
-void move_q(task_t *task);
-
+int free_args(void *_task);
+int actual_push(void *_task);
+int push_task(task_t* task, char *group);
+int finished_task(task_t* task);
+int move_q(task_t *task);
+int del_non_signf(void *args1, void *args2);
 #endif

@@ -6,7 +6,7 @@ CC=gcc
 AR=ar
 override CFLAGS+= --static -c -Wall -g -I include/ -O3 #-DDEBUG 
 LDFLAGS= -lpthread -lOpenCL -ldl -lrt -fPIC -lm5
-SOURCES=list.c group.c task.c coordinator.c  accelerator.c opencl_nvidia_wrapper.c
+SOURCES=list.c group.c task.c coordinator.c  accelerator.c
 INCLUDE=-I./fi
 LIB=-L./fi
 OBJECTS=$(SOURCES:.c=.o)

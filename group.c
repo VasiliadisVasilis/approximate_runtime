@@ -107,14 +107,18 @@ float calculate_ratio(group_t *elem){
   else return 1.1;
 }
 
-void force_termination(void *args){
+int force_termination(void *args){
+  int ret=0;
   task_t *task = (task_t*) args;
   pthread_mutex_lock(&task->lock);
   pthread_t acc = task->execution_thread;
   if(task->significance == NON_SIGNIFICANT){
+    ret = 1;
     pthread_kill(acc,SIGUSR1);
   }
   pthread_mutex_unlock(&task->lock);
+
+  return ret;
 }
 
 int wait_group_ratio(group_t* group, float ratio)
@@ -142,9 +146,9 @@ int wait_group_ratio(group_t* group, float ratio)
 
 int wait_group_time(group_t *group, unsigned int time_ms)
 {
-  int ret;
+  int ret, removed;
   struct timespec watchdog ={0, 0};
-  time_t secs;
+  size_t secs;
   long nsecs;
 
   clock_gettime(CLOCK_REALTIME, &watchdog);
@@ -152,7 +156,7 @@ int wait_group_time(group_t *group, unsigned int time_ms)
   nsecs = watchdog.tv_nsec + (time_ms % 1000)*100000;
   watchdog.tv_sec = secs + nsecs / 1000000000L;
   watchdog.tv_nsec = nsecs % 1000000000L;
-
+  removed = 0;
   do 
   {
     debug("Wait on watchdog...\n");
@@ -162,9 +166,22 @@ int wait_group_time(group_t *group, unsigned int time_ms)
       debug("Wait on watchdog...Done\n");
       if(group->finished_sig_num != group->total_sig_tasks){
         group->ratio = 0.0;
+        pthread_mutex_lock(&group->pending_q->lock);
+        while ( delete_element(group->pending_q, del_non_signf, NULL ) != NULL )
+        {
+          removed ++;
+        }
+        pthread_mutex_unlock(&group->pending_q->lock);
+        pthread_mutex_lock(&group->executing_q->lock);
+        removed += exec_on_elem(group->executing_q,force_termination); 
+        pthread_mutex_unlock(&group->executing_q->lock);
         debug("Wait for significant tasks...\n");
         pthread_cond_wait(&group->condition, &group->lock);
         debug("Wait for significant tasks...Done\n");
+        if (removed)
+        {
+          printf("[RTS] Kill non-significant tasks. %d\n", removed);
+        }
         break;
       }
       else
@@ -172,12 +189,22 @@ int wait_group_time(group_t *group, unsigned int time_ms)
         if(group->executing_num != 0)
         {
           if(!group->terminated){
+            pthread_mutex_lock(&group->pending_q->lock);
+            while (delete_element(group->pending_q, del_non_signf, NULL ) != NULL )
+            {
+              removed ++;
+            }
+            pthread_mutex_unlock(&group->pending_q->lock);
             pthread_mutex_lock(&group->executing_q->lock);
-            exec_on_elem(group->executing_q,force_termination); 
+            removed += exec_on_elem(group->executing_q,force_termination); 
             pthread_mutex_unlock(&group->executing_q->lock);
             group->terminated = 0;
             #warning this might be wrong ...
             pthread_mutex_unlock(&group->lock);
+            if (removed)
+            {
+              printf("[RTS] Kill non-significant tasks %d.\n", removed);
+            }
           }
         }
         while(group->executing_num != 0){}
@@ -262,7 +289,7 @@ group_redo:
   if( (type&SYNC_TIME) )
   {
     debug("Waiting for time...\n");
-    wait_group_time(my_group, time_us);
+    wait_group_time(my_group, time_ms);
     debug("Waiting for time...Done\n");
   }
   else if(type&SYNC_ALL)
@@ -314,14 +341,14 @@ done_exec_group:
   return 1; 
 }
 
-void explicit_sync(group_t *curr_group){
+int explicit_sync(group_t *curr_group){
   float ratio;
   pthread_mutex_lock(&curr_group->lock);
   // Check if I have a pending barrier.
   if(!curr_group->locked){
     pthread_mutex_unlock(&curr_group->lock);
     // If not just return.
-    return ;
+    return 0;
   }
 
   // check if the current group has executed all the significant tasks
@@ -329,11 +356,11 @@ void explicit_sync(group_t *curr_group){
     ratio = calculate_ratio(curr_group);
     if(ratio < curr_group ->ratio ){
       pthread_mutex_unlock(&curr_group->lock);
-      return ;
+      return 0 ;
     }
   }else{
     pthread_mutex_unlock(&curr_group->lock);
-    return;
+    return 0;
   }
 
   // I am here only if I need to wake up the main application from 
@@ -352,7 +379,7 @@ void explicit_sync(group_t *curr_group){
       pthread_mutex_unlock(&curr_group->lock);
       // I am returning because at this point the terminated tasks are going to check again whether 
       // to continue execution of this group or not.
-      return;
+      return 0;
     }
   }
 
@@ -362,7 +389,7 @@ void explicit_sync(group_t *curr_group){
   //release mutex of the thread.
   pthread_mutex_unlock(&curr_group->lock);
   debug("Waking up main application\n");
-  return;
+  return 1;
 
 }
 

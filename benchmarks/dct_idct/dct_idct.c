@@ -264,7 +264,7 @@ void DCT(unsigned char pic[], double dct[], double COS[], double C[]) {
               spawn_dct_task(r, c, 6, 4, 50);
               spawn_dct_task(r, c, 6, 6, 40);*/
     }
-  wait_group("dct", NULL, NULL, SYNC_RATIO|SYNC_TIME, 800, 0, 1.0f, 0);
+  wait_group("dct", NULL, NULL, SYNC_RATIO|SYNC_TIME, 200, 0, 1.0f, 0);
   //#pragma taskwait all label(dct)
 
   return;

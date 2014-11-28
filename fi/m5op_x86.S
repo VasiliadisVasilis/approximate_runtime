@@ -64,6 +64,7 @@ TWO_BYTE_OP(m5_panic, panic_func)
 TWO_BYTE_OP(m5_work_begin, work_begin_func)
 TWO_BYTE_OP(m5_work_end, work_end_func)
 
+
+TWO_BYTE_OP(gemfi_faulty,gemfi_faulty_func)
 TWO_BYTE_OP(fi_activate_inst,fi_activate_func)
 TWO_BYTE_OP(fi_read_init_all,init_fi_system)
-TWO_BYTE_OP(m5_whofailed,whofailed)

@@ -406,7 +406,12 @@ int main(int argc, char* argv[]) {
     for (c = 0; c < WIDTH*8; c++){
       pic[r*8*WIDTH+c] = pic[(r%512)*8*WIDTH+c%512];
     }
+
+#ifdef MEMPROTECT
+#warning Protecting read only memory
   mprotect(quant_table, bytes,  PROT_READ);
+#endif
+
   non_sig = THREADS/2;
   if ( non_sig == 0 )
   {

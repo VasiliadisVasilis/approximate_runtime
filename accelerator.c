@@ -94,7 +94,7 @@ void* main_acc(void *args){
       {
         getcontext(&(whoami->context));
       }
-
+GET_CONTEXT:
     if(whoami->flag == TASK_NONE)
     {
       whoami->flag = TASK_EXECUTING;

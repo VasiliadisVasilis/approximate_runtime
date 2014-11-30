@@ -66,7 +66,9 @@ void action(int sig, siginfo_t* siginfo, void *context){
     if(my_id == my_threads[i].my_id ){
       if(my_threads[i].flag == TASK_EXECUTING){
         my_threads[i].flag = TASK_TERMINATED;
+#ifndef FAKE_SETCONTEXT
         setcontext(&(my_threads[i].context));
+#endif
         return ;
       }
       else{
@@ -88,7 +90,9 @@ void seg_fault_action(int sig, siginfo_t* siginfo, void *context){
       {
         my_threads[i].flag = TASK_CRASHED;
         DISABLE_FI( (my_threads+i) );
+#ifndef FAKE_SETCONTEXT
         setcontext(&(my_threads[i].context));
+#endif
         return ;
       }
       else{

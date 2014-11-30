@@ -5,10 +5,20 @@
 #ifdef ENABLE_CONTEXT
 #warning Context_set/get mechanism enabled.
 #endif
+#ifdef FAKE_SETCONTEXT
+#ifdef ENABLE_CONTEXT
+	#define setcontext(X) goto GET_CONTEXT
+#else
+	#define setcontex(X) void
+#endif
+#endif
 
 #ifdef ENABLE_SIGNALS
 #warning Signal handler mechanism enabled.
 #endif
+
+
+
 
 #ifdef GEMFI 						
 #include "m5op.h"

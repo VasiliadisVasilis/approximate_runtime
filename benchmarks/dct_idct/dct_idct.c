@@ -258,7 +258,11 @@ void DCT(unsigned char pic[], double dct[], double COS[], double C[]) {
               spawn_dct_task(r, c, 6, 4, 50);
               spawn_dct_task(r, c, 6, 6, 40);*/
     }
-  wait_group("dct", NULL, NULL, SYNC_RATIO|SYNC_TIME, 200, 0, 1.0f, 0);
+#ifdef PROTECT
+  wait_group("dct", NULL, NULL, SYNC_RATIO|SYNC_TIME, 400, 0, 1.0f, 0);
+#else
+  wait_group("dct", NULL, NULL, SYNC_RATIO, 0, 0, 1.0f, 0);
+#endif
   //#pragma taskwait all label(dct)
 
   return;
@@ -407,7 +411,7 @@ int main(int argc, char* argv[]) {
       pic[r*8*WIDTH+c] = pic[(r%512)*8*WIDTH+c%512];
     }
 
-#ifdef MEMPROTECT
+#ifdef PROTECT
 #warning Protecting read only memory
   mprotect(quant_table, bytes,  PROT_READ);
 #endif
@@ -427,7 +431,6 @@ int main(int argc, char* argv[]) {
 #else
   start = this_time();
 #endif
-  printf("Address is %p\n",dct);
   DCT(pic, dct, COS, C);
 #ifdef GEMFI
 #warning compiling for gemfi execution

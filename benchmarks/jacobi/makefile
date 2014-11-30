@@ -1,9 +1,8 @@
-# C compiler
-CC = gcc
-CFLAGS=-g -pthread -Wall -lm  -O3 # -DDEBUG
-LDFLAGS=-lrtsrel -lm -lrt
-LIB=-L../../
-INCLUDE=-I../../include/ -I.
+override CFLAGS+= -pthread -Wall  --static -O3 # -DDEBUG
+#use CFLAGS = -DGEMFI to enable gemfi faults and -DSANITY to enable trc
+LDFLAGS=-lrtsrel -lm -lrt -lm5
+LIB=-L../../ -L../../fi
+INCLUDE=-I../../include/ -I../../fi
 
 jacobi: runtime jacobi.o
 	$(CC) $(CFLAGS) $(LIB) $(INCLUDE) jacobi.o -o jacobi $(LDFLAGS)

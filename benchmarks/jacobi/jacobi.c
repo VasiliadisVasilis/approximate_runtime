@@ -275,7 +275,7 @@ int main(int argc, char* argv[]) {
   char *endptr;
   int diagonally_dominant;
   unsigned int iters;
-  int ret;
+  int ret, i;
   int non_sig;
   long start, dur, _seed;
   long bytes, page;
@@ -301,7 +301,9 @@ int main(int argc, char* argv[]) {
   bytes = sizeof(double) * (N*N + N + N);
   page = sysconf(_SC_PAGESIZE);
   bytes = ceil(bytes/(double)page) * page;
+  mat = NULL;
   posix_memalign((void**)&mat, page, bytes);
+  assert(mat);
   y = mat + N*N;
   b = y + N;
   assert(x1);
@@ -337,6 +339,10 @@ int main(int argc, char* argv[]) {
 #ifdef GEMFI
   stop_exec();
   m5_dumpreset_stats(0,0);
+  for ( i=0; i<N; ++i)
+  {
+    m5_writefile( *((long*)(x+i)), sizeof(double), i*sizeof(double));
+  }
 #endif
   free(x1);
   free(x);

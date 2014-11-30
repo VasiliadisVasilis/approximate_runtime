@@ -123,10 +123,12 @@ GET_CONTEXT:
     {
 #endif
       whoami->return_val = SANITY_SUCCESS;
+#ifdef ENABLE_SIGNALS
       if ( whoami->flag == TASK_CRASHED )
       {
         printf("[RTS] TaskCrashed %d\n", whoami->task_id);
       }
+#endif
 #ifdef GEMFI
       am_i_faulty = gemfi_faulty();
       if ( am_i_faulty )

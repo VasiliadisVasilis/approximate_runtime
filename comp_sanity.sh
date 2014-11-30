@@ -1,0 +1,3 @@
+#!/bin/bash
+make clean
+make CFLAGS="-DGEMFI -DDUAL_TASKS -DENABLE_CONTEXT -DFAKE_SETCONTEXT" CC=$1

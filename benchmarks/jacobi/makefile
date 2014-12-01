@@ -1,11 +1,16 @@
-override CFLAGS+= -pthread -Wall  --static -O3 # -DDEBUG
+override CFLAGS+= -pthread -Wall  --static
+OPT= -O3 -loop-unroll -loop-simplify -loop-reduce -loop-unswitch -memcpyopt # -DDEBUG
 #use CFLAGS = -DGEMFI to enable gemfi faults and -DSANITY to enable trc
 LDFLAGS=-lrtsrel -lm -lrt -lm5
 LIB=-L../../ -L../../fi
 INCLUDE=-I../../include/ -I../../fi
 
-jacobi: runtime jacobi.o
-	$(CC) $(CFLAGS) $(LIB) $(INCLUDE) jacobi.o -o jacobi $(LDFLAGS)
+jacobi:jacobi.o
+	gcc $(CFLAGS) $(LIB) $(INCLUDE) jacobi.o -o jacobi $(LDFLAGS)
+
+jacobi.o: jacobi.c
+	$(CC) $(CFLAGS) $(OPT) $(LIB) $(INCLUDE) jacobi.c -c 
+
 
 runtime:
 	make -C ../../

@@ -8,7 +8,7 @@ int main(int argc, char *argv[])
   double rel_err = 0 ;
   double err1, err2;
   int identical = 1;
-
+  int i = 0;
 
   if ( argc != 5 )
   {
@@ -16,15 +16,15 @@ int main(int argc, char *argv[])
     return 1;
   }
   
-  input1 = fopen(argv[0], "rb");
-  input2 = fopen(argv[1], "rb");
-  identical = atoi(argv[2]) == atoi(argv[3]);
+  input1 = fopen(argv[1], "rb");
+  input2 = fopen(argv[2], "rb");
+  identical = atoi(argv[3]) == atoi(argv[4]);
   err1 = 0;
   err2 = 0;
   rel_err = 0;
 
   while( fread(&d, sizeof(double), 1, input1) 
-    && fread(&d, sizeof(double), 1, input2))
+    && fread(&e, sizeof(double), 1, input2))
   {
     if ( err1 < fabs(d-1.0) )
     {
@@ -40,18 +40,18 @@ int main(int argc, char *argv[])
   
   rel_err = fabs(err2-err1)/err2;
   
-  printf("Rel Error: %lf\nErr1: %lf\nErr2: %lf\n", rel_err, err1, err2);
-  printf("Verdict: ");
+//  printf("Rel Error: %lf\nErr1: %lf\nErr2: %lf\n", rel_err, err1, err2);
+//  printf("Verdict: ");
   if ( identical )
   {
-    printf("Strict\n");
+    printf("strict\n");
   } else if ( err1 < err2 || rel_err < 0.1f  )
   {
-    printf("Correct\n");
+    printf("correct\n");
   }
   else
   {
-    printf("SDC\n");
+    printf("altered\n");
   }
   return 0;
 }

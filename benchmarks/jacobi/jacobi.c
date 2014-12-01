@@ -249,7 +249,7 @@ int jacobi(double *A, double *x, double *x1,  double *b, double* y,
     }
 
 #ifdef PROTECT
-    wait_group(group_name, NULL, NULL, SYNC_RATIO|SYNC_TIME, 400, 0, 1.0f, 0);
+    wait_group(group_name, NULL, NULL, SYNC_RATIO|SYNC_TIME, 16 , 0, 1.0f, 0);
 #else
     wait_group(group_name, NULL, NULL, SYNC_RATIO, 0, 0, 1.0f, 0);
 #endif
@@ -324,9 +324,15 @@ int main(int argc, char* argv[]) {
   m5_switchcpu();
 #endif
   init_system(THREADS-non_sig, non_sig);
-
   start =my_time();
+#ifdef GEMFI
+ m5_dumpreset_stats(0,0); 
+#endif
   ret = jacobi(mat, x, x1, b, y, N, itol, &iters);
+#ifdef GEMFI
+ m5_dumpreset_stats(0,0); 
+#endif
+ 
   dur = my_time() - start;
   if ( ret == 0 ) {
     printf("Converged after %d iterations, solution:\n", iters);
@@ -338,7 +344,6 @@ int main(int argc, char* argv[]) {
       THREADS, (double)(dur)/1000000.0, iters);
 #ifdef GEMFI
   stop_exec();
-  m5_dumpreset_stats(0,0);
   for ( i=0; i<N; ++i)
   {
     m5_writefile( *((long*)(x+i)), sizeof(double), i*sizeof(double));

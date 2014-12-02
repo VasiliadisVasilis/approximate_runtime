@@ -76,9 +76,11 @@
 #include <sys/types.h>
 #include <fcntl.h>
 #include <omp.h>
-#include <sys/time.h>
+#include <sys/mman.h>
+#include <unistd.h>
 #include <runtime.h>
 #include <unistd.h>
+#include <assert.h>
 #include "getopt.h"
 #include "kmeans.h"
 
@@ -103,7 +105,7 @@ void usage(char *argv0) {
 /*---< main() >-------------------------------------------------------------*/
 int main(int argc, char **argv) {
            int     num_omp_threads = 1;
-           int     bytes;
+           int     bytes  = 0;
            int     page;
            int    *membership;
            int     non_sig;
@@ -162,8 +164,11 @@ int main(int argc, char **argv) {
             fprintf(stderr, "Error: no such file (%s)\n", filename);
             exit(1);
         }
-        read(infile, &numObjects,    sizeof(int));
-        read(infile, &numAttributes, sizeof(int));
+        if ( read(infile, &numObjects,    sizeof(int)) != sizeof(int) 
+            || read(infile, &numAttributes, sizeof(int)) != sizeof(int) ) 
+        {
+          assert(0 && "Could not read header");
+        }
    
 
         /* allocate space for attributes[] and read attributes of all objects */
@@ -174,12 +179,20 @@ int main(int argc, char **argv) {
         page = sysconf(_SC_PAGESIZE);
         bytes = ceil(bytes/(double)page) * page;
         attributes[0] = NULL;
-        posix_memalign((void**)&attributes[0], page, bytes);
+        if ( posix_memalign((void**)&attributes[0], page, bytes) )
+        {
+          assert(0 && "Could not allocate memory for points");
+        }
 
         for (i=1; i<numObjects; i++)
             attributes[i] = attributes[i-1] + numAttributes;
 
-        read(infile, buf, numObjects*numAttributes*sizeof(float));
+        if ( read(infile, buf, numObjects*numAttributes*sizeof(float))
+          != numObjects*numAttributes*sizeof(float) )
+        {
+          assert(0 && "Could not read point features from file");
+        }
+        
 
         close(infile);
     }
@@ -205,7 +218,14 @@ int main(int argc, char **argv) {
         /* allocate space for attributes[] and read attributes of all objects */
         buf           = (float*) malloc(numObjects*numAttributes*sizeof(float));
         attributes    = (float**)malloc(numObjects*             sizeof(float*));
-        attributes[0] = (float*) malloc(numObjects*numAttributes*sizeof(float));
+        bytes = sizeof(float)*numObjects*numAttributes;
+        page = sysconf(_SC_PAGESIZE);
+        bytes = ceil(bytes/(double)page) * page;
+        attributes[0] = NULL;
+        if ( posix_memalign((void**)&attributes[0], page, bytes) )
+        {
+          assert(0 && "Could not allocate memory for points");
+        }
         for (i=1; i<numObjects; i++)
             attributes[i] = attributes[i-1] + numAttributes;
         rewind(infile);

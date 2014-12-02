@@ -278,7 +278,7 @@ void clusters_init(int nclusters, int npoints, int nfeatures)
 }
 
 #ifdef SANITY
-int reset_point(void* _args, void *dummy, int crashed)
+int reset_point(void* _args, void *dummy, int faulty)
 {
   arg_t   *args      = (arg_t*) _args;
   int      npoints   = args->npoints;
@@ -286,7 +286,7 @@ int reset_point(void* _args, void *dummy, int crashed)
   int      work      = args->work;
   int start, end, i, index;
 
-  if (crashed == 0)
+  if (faulty == 0)
     return SANITY_SUCCESS;
 
   start = tid*work;
@@ -596,7 +596,11 @@ float** kmeans_clustering(float **_feature,    /* in: [npoints][nfeatures] */
   bytes = sizeof(float)*nclusters*nfeatures;
   page = sysconf(_SC_PAGESIZE);
   bytes = ceil(bytes/(double)page) * page;
-  posix_memalign((void**)&clusters[0], page, bytes);
+  if ( posix_memalign((void**)&clusters[0], page, bytes) )
+  {
+    assert( 0 && "Could not allocate memory");
+  }
+
   for (i=1; i<nclusters; i++)
     clusters[i] = clusters[i-1] + nfeatures;
 

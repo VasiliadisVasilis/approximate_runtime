@@ -80,8 +80,8 @@ int cluster(int      numObjects,      /* number of input objects */
     float  **attributes,      /* [numObjects][numAttributes] */            
     int      nclusters,
     float    threshold,       /* in:   */
-    float ***cluster_centres /* out: [best_nclusters][numAttributes] */
-
+    float ***cluster_centres, /* out: [best_nclusters][numAttributes] */
+    int      loopMax
     )
 {
   int    *membership;
@@ -96,7 +96,8 @@ int cluster(int      numObjects,      /* number of input objects */
       numObjects,
       nclusters,
       threshold,
-      membership);      
+      membership,
+      loopMax);      
 
   if (*cluster_centres) {
     free((*cluster_centres)[0]);

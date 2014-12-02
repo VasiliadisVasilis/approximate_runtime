@@ -59,14 +59,15 @@
 /**                                                                     **/
 /*************************************************************************/
 
+#include "kmeans.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <float.h>
 #include <math.h>
 #include <assert.h>
-#include "kmeans.h"
-#include <runtime.h>
 #include <string.h>
+#include <runtime.h>
+#include <m5op.h>
 
 #define CALCULATE_CENTER
 
@@ -273,7 +274,7 @@ void clusters_init(int nclusters, int npoints, int nfeatures)
   }
 }
 
-void reset_point(void* _args)
+int reset_point(void* _args, void *dummy)
 {
   arg_t   *args      = (arg_t*) _args;
   int      npoints   = args->npoints;
@@ -293,9 +294,10 @@ void reset_point(void* _args)
       add_point_to_cluster(i, index);
     }
   }
+  return SANITY_SUCCESS;
 }
 
-void process_point(void* _args)
+void process_point(void* _args, unsigned int task_id, unsigned int significance) 
 {
   arg_t   *args      = (arg_t*) _args;
   int      nfeatures = args->nfeatures;
@@ -305,35 +307,37 @@ void process_point(void* _args)
   int      work      = args->work;
   int start, end, i, index;
 
+#ifdef GEMFI
+  if ( significance == NON_SIGNIFICANT )
+  {
+    fi_activate_inst(task_id, START);
+  }
+#endif
   start = tid*work;
   end = start+work;
   end = end > npoints ? npoints : end;
+
   for (i=start; i<end; i++) 
   {
-    if ( rand()%100 > 90 )
-    {
-      index = find_nearest_point(NULL,
-          i,
-          nfeatures,
-          clusters,
-          nclusters);				
-    }
-    else
-    {
-      /* find the index of nestest cluster centers */					
-      index = find_nearest_point(feature[i],
-          i,
-          nfeatures,
-          clusters,
-          nclusters);				
-    }
-      /* if membership changes, increase delta by 1 */
+    /* find the index of nestest cluster centers */					
+    index = find_nearest_point(feature[i],
+        i,
+        nfeatures,
+        clusters,
+        nclusters);				
+    /* if membership changes, increase delta by 1 */
     if (membership[i] != index)
     {
       membership[i] = index;
       add_point_to_cluster(i, index);
     }
   }
+#ifdef GEMFI
+  if ( significance == NON_SIGNIFICANT )
+  {
+    fi_activate_inst(task_id, PAUSE);
+  }
+#endif
 }
 
 #ifdef CALCULATE_RADIUS
@@ -364,7 +368,7 @@ void calculateRadius(
 }
 #endif
 
-void process_cluster(void *_args)
+void process_cluster(void *_args, unsigned int task_id, unsigned int significance)
 {
   arg_t   *args      = (arg_t*) _args;
   int      nfeatures = args->nfeatures;
@@ -373,6 +377,8 @@ void process_cluster(void *_args)
   int pos, tail;
   int deleted = 0;
   cluster_t *p;
+
+
 
   p = cluster_points + tid;
   old_points = p->old_points;
@@ -429,7 +435,7 @@ void process_cluster(void *_args)
   if ( p->old_points <= 0 )
   {
     p->old_points = 1;
-    memset(clusters[tid], feature[p->points[0]],  sizeof(float)*nfeatures);
+    memcpy(clusters[tid], feature[p->points[0]],  sizeof(float)*nfeatures);
   }
   assert(p->old_points>0);
   /* vasiliad: update the center */
@@ -476,7 +482,7 @@ calculateCenterDelta(int nfeatures, int nclusters)
   {
     delta = euclid_dist_2(p->prev_center, clusters[i], nfeatures);
     rel = fabs((delta-p->prev_center_delta)/(p->prev_center_delta+1e-15));
-    printf("Cluster %d moved %g %g\n",i, delta, rel);
+//    printf("Cluster %d moved %g %g\n",i, delta, rel);
     p->prev_center_delta = delta;
     memcpy(p->prev_center, clusters[i], nfeatures*sizeof(float));
   }
@@ -504,6 +510,7 @@ void clear_move_status(void* _args)
   }
 }
 
+#if 0
 void 
 reset_last_iteration(int nclusters, int npoints, int nfeatures, int nthreads, int loop,
   int work)
@@ -523,7 +530,7 @@ reset_last_iteration(int nclusters, int npoints, int nfeatures, int nthreads, in
     args.npoints   = npoints;
 
     task = new_task(reset_point, &args, sizeof(args), NULL, NULL, 0,
-        NON_SIGNIFICANT, 0);
+        SIGNIFICANT, 0);
     push_task(task, group_name);
     //process_point(&args);
   }
@@ -548,26 +555,24 @@ reset_last_iteration(int nclusters, int npoints, int nfeatures, int nthreads, in
   args.nclusters = nclusters;
   wait_group(group_name, NULL, NULL, SYNC_RATIO, 0, 0, 1.0f, 0);
 }
-
+#endif
 /*----< kmeans_clustering() >---------------------------------------------*/
 float** kmeans_clustering(float **_feature,    /* in: [npoints][nfeatures] */
     int     nfeatures,
     int     npoints,
     int     nclusters,
     float   threshold,
-    int    *_membership) /* out: [npoints] */
+    int    *_membership, /* out: [npoints] */
+    int     loopMax)
 {
   int      i, loop=0;
   int      tid, work;
   int      nthreads;
-  int prev_sum_delta;
   char group_name[256];
-
 
   nthreads   = num_omp_threads;
   feature    = _feature;
   membership = _membership;
-
 
   /* allocate space for returning variable clusters[] */
   moved         = (char*) calloc(npoints, sizeof(char));
@@ -596,10 +601,7 @@ float** kmeans_clustering(float **_feature,    /* in: [npoints][nfeatures] */
   for (i=1; i<nclusters; i++)
     new_centers[i] = new_centers[i-1] + nfeatures;
 
-
-  printf("num of threads = %d\n", num_omp_threads);
   work = npoints/nthreads;
-  prev_sum_delta = npoints;
   do {
     arg_t args;
     sum_delta = 0.0;
@@ -614,7 +616,7 @@ float** kmeans_clustering(float **_feature,    /* in: [npoints][nfeatures] */
       args.work      = work;
       args.npoints   = npoints;
 
-      task = new_task(process_point, &args, sizeof(args), NULL, NULL, 0,
+      task = new_task(process_point, &args, sizeof(args), reset_point, NULL, 0,
           NON_SIGNIFICANT, 0);
       push_task(task, group_name);
       //process_point(&args);
@@ -643,21 +645,10 @@ float** kmeans_clustering(float **_feature,    /* in: [npoints][nfeatures] */
     args.nfeatures = nfeatures;
     args.npoints = npoints;
     args.nclusters = nclusters;
-    wait_group(group_name, NULL, NULL, SYNC_RATIO, 0, 0, 1.0f, 0);
-
-    if ( sum_delta > prev_sum_delta )
-    {
-      prev_sum_delta = npoints;
-      reset_last_iteration(nclusters, npoints, nfeatures, nthreads, loop, work);
-    }
-    else
-    {
-      prev_sum_delta = sum_delta;
-    }
-
+    wait_group(group_name, NULL, NULL, SYNC_RATIO | SYNC_TIME, 16, 0, 1.0f, 0);
 
     clear_move_status(&args);
-    printf("*** Changed %d\n", sum_delta);
+//    printf("*** Changed %d\n", sum_delta);
 
     if ( loop == 0 )
     {
@@ -685,7 +676,7 @@ float** kmeans_clustering(float **_feature,    /* in: [npoints][nfeatures] */
 #endif
     }
 
-    printf("%d\n", points);
+    //printf("SumPoints %d\n", points);
     //assert(points == npoints);
 #ifdef CALCULATE_RADIUS
     for ( i=0; i<nclusters; ++i)
@@ -700,7 +691,7 @@ float** kmeans_clustering(float **_feature,    /* in: [npoints][nfeatures] */
     calculateCenterDelta(nfeatures, nclusters);
 #endif
 
-  } while (sum_delta > threshold && loop++ < 500);
+  } while (sum_delta > threshold && ++loop < loopMax);
 
   printf("Delta = %d # %lf\n", sum_delta, threshold);
   printf("Loops = %d\n", loop);

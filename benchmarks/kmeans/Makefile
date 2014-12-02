@@ -1,12 +1,12 @@
-# C compiler
-CC = gcc
-CFLAGS=-g -pthread -Wall -lm  -O3 # -DDEBUG
-LDFLAGS=-lrtsrel -lm -lrt
-LIB=-L../../
-INCLUDE=-I../../include/
+override CFLAGS+= -pthread -Wall  --static -O3 # -DDEBUG
+#use CFLAGS = -DGEMFI to enable gemfi faults and -DSANITY to enable trc
+LDFLAGS=-lrtsrel -lm -lrt -lm5
+LIB=-L../../ -L../../fi
+INCLUDE=-I../../include/ -I../../fi
+CC?=clang
 
 kmeans: cluster.o getopt.o kmeans.o kmeans_clustering.o runtime
-	$(CC) $(CFLAGS) $(LIB) $(INCLUDE) cluster.o getopt.o kmeans.o kmeans_clustering.o  -o kmeans $(LDFLAGS)
+	gcc $(CFLAGS) $(LIB) $(INCLUDE) cluster.o getopt.o kmeans.o kmeans_clustering.o  -o kmeans $(LDFLAGS)
 
 runtime:
 	make -C ../../ "CFLAGS=$(CFLAGS)"

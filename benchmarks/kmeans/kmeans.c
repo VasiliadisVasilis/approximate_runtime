@@ -78,16 +78,9 @@
 #include <omp.h>
 #include <sys/time.h>
 #include <runtime.h>
+#include <unistd.h>
 #include "getopt.h"
 #include "kmeans.h"
-
-long my_time()
-{
-  struct timeval tv;
-  gettimeofday(&tv, NULL);
-  return tv.tv_sec*1000000+tv.tv_usec;
-}
-
 
 int num_omp_threads = 1;
 
@@ -97,9 +90,11 @@ void usage(char *argv0) {
         "Usage: %s [switches] -i filename\n"
         "       -i filename     		: file containing data to be clustered\n"
         "       -b                 	: input file is in binary format\n"
-		"       -k                 	: number of clusters (default is 5) \n"
+		    "       -k                 	: number of clusters (default is 5) \n"
         "       -t threshold		: threshold value\n"
-		"       -n no. of threads	: number of threads";
+		    "       -n no. of threads	: number of threads\n"
+        "       -m no. of maximum loop iterations";
+
     fprintf(stderr, help, argv0);
     exit(-1);
 }
@@ -122,10 +117,11 @@ int main(int argc, char **argv) {
            char    line[1024];           
            int     isBinaryFile = 0;
            int     nloops = 1;
+           int     nloopsMax = 10;
            float   threshold = 0.001;
 		   long timing;		   
 
-	while ( (opt=getopt(argc,argv,"i:k:t:b:n:?"))!= EOF) {
+	while ( (opt=getopt(argc,argv,"m:i:k:t:b:n:?"))!= EOF) {
 		switch (opt) {
             case 'i': filename=optarg;
                       break;
@@ -135,8 +131,10 @@ int main(int argc, char **argv) {
                       break;
             case 'k': nclusters = atoi(optarg);
                       break;			
-			case 'n': num_omp_threads = atoi(optarg);
-					  break;
+            case 'm': nloopsMax = atoi(optarg);
+                      break;
+            case 'n': num_omp_threads = atoi(optarg);
+                      break;
             case '?': usage(argv[0]);
                       break;
             default: usage(argv[0]);
@@ -224,7 +222,8 @@ int main(int argc, char **argv) {
                 attributes,           /* [numObjects][numAttributes] */                
                 nclusters,
                 threshold,
-                &cluster_centres   
+                &cluster_centres,
+                nloopsMax
                );
      
     }
@@ -244,7 +243,7 @@ int main(int argc, char **argv) {
         printf("\n\n");
     }
 */
-    printf("Time for process: %f\n", timing/1000000.0);
+    printf("Time for process[ms]: %f\n", timing/1000.0);
 
     free(attributes);
     free(cluster_centres[0]);

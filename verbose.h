@@ -21,4 +21,8 @@
 #else
   #warning [NoticeMe] Significant/NonSignificant tasks use different queues disabled
 #endif
-
+#ifdef RAZOR
+  #warning [NoticeMe] Razor is ENABLED
+#else
+  #warning [NoticeMe] Razor is disabled
+#endif

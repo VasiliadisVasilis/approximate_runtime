@@ -114,7 +114,7 @@ GET_CONTEXT_LABEL
             || whoami->exec_status == TASK_TERMINATED ) )
     {
       am_i_faulty = 0;
-#ifdef GEMFI
+#ifdef RAZOR
       am_i_faulty |= gemfi_faulty();
       if ( am_i_faulty )
       {

@@ -82,7 +82,7 @@
 #include "getopt.h"
 #include "kmeans.h"
 
-int num_omp_threads = 1;
+int granularity = 10;
 
 /*---< usage() >------------------------------------------------------------*/
 void usage(char *argv0) {
@@ -93,7 +93,8 @@ void usage(char *argv0) {
 		    "       -k                 	: number of clusters (default is 5) \n"
         "       -t threshold		: threshold value\n"
 		    "       -n no. of threads	: number of threads\n"
-        "       -m no. of maximum loop iterations";
+        "       -m no. of maximum loop iterations\n"
+        "       -g no. of points each thread handles\n";
 
     fprintf(stderr, help, argv0);
     exit(-1);
@@ -101,6 +102,9 @@ void usage(char *argv0) {
 
 /*---< main() >-------------------------------------------------------------*/
 int main(int argc, char **argv) {
+           int     num_omp_threads = 1;
+           int     bytes;
+           int     page;
            int    *membership;
            int     non_sig;
            int     opt;
@@ -122,7 +126,7 @@ int main(int argc, char **argv) {
            float   threshold = 0.001;
 		   long timing;		   
 
-	while ( (opt=getopt(argc,argv,"m:i:k:t:b:n:?"))!= EOF) {
+	while ( (opt=getopt(argc,argv,"g:m:i:k:t:b:n:?"))!= EOF) {
 		switch (opt) {
             case 'i': filename=optarg;
                       break;
@@ -135,6 +139,8 @@ int main(int argc, char **argv) {
             case 'm': nloopsMax = atoi(optarg);
                       break;
             case 'n': num_omp_threads = atoi(optarg);
+                      break;
+            case 'g': granularity = atoi(optarg);
                       break;
             case '?': usage(argv[0]);
                       break;
@@ -163,7 +169,13 @@ int main(int argc, char **argv) {
         /* allocate space for attributes[] and read attributes of all objects */
         buf           = (float*) malloc(numObjects*numAttributes*sizeof(float));
         attributes    = (float**)malloc(numObjects*             sizeof(float*));
-        attributes[0] = (float*) malloc(numObjects*numAttributes*sizeof(float));
+        //attributes[0] = (float*) malloc(numObjects*numAttributes*sizeof(float));
+        bytes = sizeof(float)*numObjects*numAttributes;
+        page = sysconf(_SC_PAGESIZE);
+        bytes = ceil(bytes/(double)page) * page;
+        attributes[0] = NULL;
+        posix_memalign((void**)&attributes[0], page, bytes);
+
         for (i=1; i<numObjects; i++)
             attributes[i] = attributes[i-1] + numAttributes;
 
@@ -208,11 +220,15 @@ int main(int argc, char **argv) {
         fclose(infile);
     }     
 	printf("I/O completed\n");	
-
 	memcpy(attributes[0], buf, numObjects*numAttributes*sizeof(float));
   non_sig = num_omp_threads/2;
   if ( non_sig == 0 )
     non_sig = 1;
+
+#ifdef PROTECT 
+  mprotect(attributes[0], bytes, PROT_READ);
+#endif
+
 #ifdef GEMFI
   m5_switchcpu();
 #endif
@@ -238,12 +254,25 @@ int main(int argc, char **argv) {
  m5_dumpreset_stats(0,0); 
 #endif
   timing = my_time() - timing;
-  
+
+#ifdef GEMFI
+  m5_writefile(numObjects, sizeof(int), 0);
+  for ( i=0; i<numObjects; ++i )
+  {
+    m5_writefile(membership[i], sizeof(int), (1+i)*sizeof(int));
+  }
+  for ( i=0; i<nclusters*numAttributes; ++i)
+  {
+    m5_writefile(*((int*)(&membership[i])), sizeof(float),
+        (1+numObjects)*sizeof(int)+i*sizeof(float));
+  }
+#else
   FILE* out = fopen("out.bin", "wb");
-  fwrite(&numObjects, sizeof(int), 1, out);
-  fwrite(membership, sizeof(int), numObjects, out);
-  fwrite(cluster_centres[0], sizeof(float), nclusters*numAttributes, out);
+  fwrite(&numObjects, sizeof(long), 1, out);
+  fwrite(membership, sizeof(long), numObjects, out);
+  fwrite(cluster_centres[0], sizeof(double), nclusters*numAttributes, out);
   fclose(out);
+#endif
   free(membership);
   printf("number of Points %d\n", numObjects);
 	printf("number of Clusters %d\n",nclusters); 

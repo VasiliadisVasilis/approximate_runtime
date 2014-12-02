@@ -68,6 +68,8 @@
 #include <string.h>
 #include <runtime.h>
 #include <m5op.h>
+#include <sys/mman.h>
+#include <unistd.h>
 
 #ifndef PROTECT
 #define assert(X) 
@@ -96,8 +98,8 @@
 #define MOVED        1
 #define NOT_MOVED    0
 
+extern int granularity;
 extern double wtime(void);
-extern int num_omp_threads;
 
 volatile int      sum_delta;
 typedef struct CLUSTER_T
@@ -123,8 +125,6 @@ float    **clusters;					/* out: [nclusters][nfeatures] */
 float    **feature;
 int       *membership;
 int       *membership_prev;
-float     *distance;
-float     *distance_prev;
 #ifdef CALCULATE_RADIUS
 float     *radius, *radius_prev;
 #endif
@@ -518,7 +518,7 @@ void clear_move_status(void* _args)
 
 #if 0
 void 
-reset_last_iteration(int nclusters, int npoints, int nfeatures, int nthreads, int loop,
+reset_last_iteration(int nclusters, int npoints, int nfeatures, int ntasks, int loop,
   int work)
 {
   int tid, i;
@@ -526,7 +526,7 @@ reset_last_iteration(int nclusters, int npoints, int nfeatures, int nthreads, in
   char group_name[30];
   
   sprintf(group_name, "pnt_'%d", loop);
-  for ( tid=0; tid<nthreads; ++tid)
+  for ( tid=0; tid<ntasks; ++tid)
   {
     task_t *task;
     args.nfeatures = nfeatures;
@@ -573,10 +573,12 @@ float** kmeans_clustering(float **_feature,    /* in: [npoints][nfeatures] */
 {
   int      i, loop=0;
   int      tid, work;
-  int      nthreads;
+  int      ntasks;
+  long bytes, page;
+
   char group_name[256];
 
-  nthreads   = num_omp_threads;
+  ntasks   = granularity;
   feature    = _feature;
   membership = _membership;
 
@@ -586,14 +588,16 @@ float** kmeans_clustering(float **_feature,    /* in: [npoints][nfeatures] */
   radius        = (float*) calloc(nclusters, sizeof(float));
   radius_prev   = (float*) calloc(nclusters, sizeof(float));
 #endif
-  clusters      = (float**) malloc(nclusters * sizeof(float*));
-  clusters[0]   = (float*)  malloc(nclusters * nfeatures * sizeof(float));
+
+  clusters  = (float**) malloc(nclusters * sizeof(float*));
+  bytes = sizeof(float)*nclusters*nfeatures;
+  page = sysconf(_SC_PAGESIZE);
+  bytes = ceil(bytes/(double)page) * page;
+  posix_memalign((void**)&clusters[0], page, bytes);
   for (i=1; i<nclusters; i++)
     clusters[i] = clusters[i-1] + nfeatures;
 
   membership_prev = (int*) calloc(npoints, sizeof(int));
-  distance = (float*) calloc(npoints, sizeof(float));
-  distance_prev = (float*) calloc(npoints, sizeof(float));
 
 
   clusters_init(nclusters, npoints, nfeatures);
@@ -606,13 +610,16 @@ float** kmeans_clustering(float **_feature,    /* in: [npoints][nfeatures] */
   for (i=1; i<nclusters; i++)
     new_centers[i] = new_centers[i-1] + nfeatures;
 
-  work = npoints/nthreads;
+  work = npoints/ntasks;
   do {
     arg_t args;
     sum_delta = 0.0;
     sprintf(group_name, "pnt_%d", loop);
+#ifdef PROTECT
+    mprotect(clusters[0], bytes, PROT_READ);
+#endif
     /*vasiliad: THIS IS THE TASK!*/
-    for ( tid=0; tid<nthreads; ++tid)
+    for ( tid=0; tid<ntasks; ++tid)
     {
       task_t *task;
       args.nfeatures = nfeatures;
@@ -633,6 +640,7 @@ float** kmeans_clustering(float **_feature,    /* in: [npoints][nfeatures] */
 
 #ifdef PROTECT
     wait_group(group_name, NULL, NULL, SYNC_RATIO | SYNC_TIME, 16, 0, 1.0f, 0);
+    mprotect(clusters[0], bytes, PROT_READ|PROT_WRITE);
 #else
     wait_group(group_name, NULL, NULL, SYNC_RATIO, 0, 0, 1.0f, 0);
 #endif

@@ -19,7 +19,7 @@ double RATIO;
 typedef struct DCT_TASK_ARGS_T dct_task_args_t;
 typedef struct IDCT_TASK_ARGS_T idct_task_args_t;
 
-#define MAX_DCT_COEFF 20000
+#define MAX_DCT_COEFF 7000
 
 struct DCT_TASK_ARGS_T
 {
@@ -32,8 +32,8 @@ struct IDCT_TASK_ARGS_T
 };
 
 #ifdef SANITY
-int dct_trc(void *args, void *not_used_at_all);
-int _dct_trc(long _r, long _c, long _i, long _j);
+int dct_trc(void *args, void *not_used_at_all, int faulty);
+int _dct_trc(long _r, long _c, long _i, long _j, int faulty);
 #endif
 
 void dct_task(void* args, unsigned int task_id, unsigned int significance);
@@ -107,18 +107,16 @@ void init_coef() {
 }
 
 #ifdef SANITY
-int dct_trc(void *_args, void* not_used_at_all)
+int dct_trc(void *_args, void* not_used_at_all, int faulty)
 {
   dct_task_args_t *args = (dct_task_args_t*) _args;
-  return _dct_trc(args->r, args->c, args->i, args->j);
+  return _dct_trc(args->r, args->c, args->i, args->j, faulty);
 }
 
-int _dct_trc(long _r, long _c, long _i, long _j)
+int _dct_trc(long _r, long _c, long _i, long _j, int faulty)
 {
-  long x, y, i, j, r, c;
+  long i, j, r, c;
   long c_e;
-  double sum = 0;
-  double dct_high, dct_low;
 
   r = _r;
   c = _c;
@@ -126,14 +124,31 @@ int _dct_trc(long _r, long _c, long _i, long _j)
     c_e = _c+STEP_C;
   else
     c_e = WIDTH; 
-  printf("[RTS] TRC %ld %ld %ld %ld\n", _r, _c, _i, _j);
-  for ( c = _c; c<c_e; ++c )
+
+  if ( faulty )
   {
-    for ( i=_i; i<_i+4; ++i )
-      for ( j=_j; j<_j+2; ++j)
-      {
-        dct[(r * 8 + i)*8*WIDTH + c * 8 + j] = 0;
-      }
+    for ( c = _c; c<c_e; ++c )
+    {
+      for ( i=_i; i<_i+4; ++i )
+        for ( j=_j; j<_j+2; ++j)
+        {
+          dct[(r * 8 + i)*8*WIDTH + c * 8 + j] = 0;
+        }
+    }
+  }
+  else
+  {
+    for ( c = _c; c<c_e; ++c )
+    {
+      for ( i=_i; i<_i+4; ++i )
+        for ( j=_j; j<_j+2; ++j)
+        {
+          if (dct[(r * 8 + i)*8*WIDTH + c * 8 + j]*quant_table[i*8+j] > MAX_DCT_COEFF )
+          {
+            dct[(r * 8 + i)*8*WIDTH + c * 8 + j] = 0;
+          }
+        }
+    }
   }
   return SANITY_SUCCESS;
 }
@@ -342,14 +357,16 @@ double MSE_PSNR() {
 
 void fillInDCT(double *dct){
   FILE *fd = fopen("ApplicationOutput","rb");
-  fread(dct,sizeof(double),512*512,fd);
+  if ( fread(dct,sizeof(double),512*512,fd) != 512*512 )
+  {
+    assert(0 && "Failed to open file");
+  }
   fclose(fd);
 }
 
 
 int main(int argc, char* argv[]) {
   int r, c, THREADS;
-  int i;
   long start, end;
   double psnr;
   int bytes, page;
@@ -380,7 +397,10 @@ int main(int argc, char* argv[]) {
   bytes = sizeof(double) *(64+8) + sizeof(int)*64 + (WIDTH*HEIGHT*64);
   page = sysconf(_SC_PAGESIZE);
   bytes = ceil(bytes/(double)page) * page;
-  posix_memalign((void**)&quant_table, page, bytes);
+  if ( posix_memalign((void**)&quant_table, page, bytes) )
+  {
+    assert(0 && "Failed to allocate memory");
+  }
 
   C = (double*)(quant_table + 64 );
   COS = C + 8;
@@ -412,7 +432,6 @@ int main(int argc, char* argv[]) {
     }
 
 #ifdef PROTECT
-#warning Protecting read only memory
   mprotect(quant_table, bytes,  PROT_READ);
 #endif
 
@@ -436,6 +455,7 @@ int main(int argc, char* argv[]) {
 #warning compiling for gemfi execution
   stop_exec();
   m5_dumpreset_stats(0,0);
+  int i;
   unsigned char *vals = (unsigned char *) dct;
   for ( i = 0 ;  i < WIDTH*HEIGHT*64*sizeof(double) ; i++){
     m5_writefile((unsigned long) vals[i],sizeof(unsigned char) ,i);
@@ -446,7 +466,7 @@ int main(int argc, char* argv[]) {
   end = this_time();
   psnr = MSE_PSNR();
   fprintf(stderr, "===Approx DCT===\n");
-  fprintf(stderr, "  Duration=%g\n", (double)(end-start)/1000000.0);
+  fprintf(stderr, "  Duration[ms]=%g\n", (double)(end-start)/1000.0);
   fprintf(stderr, "  PSNR=%g\n", psnr);
   fprintf(stderr, "  Ratio=%g\n", RATIO);
   fprintf(stderr, "=================\n");

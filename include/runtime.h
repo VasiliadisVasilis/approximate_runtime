@@ -12,8 +12,9 @@
 
 
 
-task_t* new_task(void (*exec)(void *, unsigned int, unsigned int), void *args, unsigned int size_args ,int (*san)(void *, void *),
-		 void *san_args, unsigned int san_size_args , unsigned char sig, unsigned int redo);
+task_t* new_task(void (*exec)(void *, unsigned int, unsigned int), void *args, 
+      unsigned int size_args ,int (*san)(void *, void *, int), 
+      void *san_args, unsigned int san_size_args , unsigned char sig, unsigned int redo);
 void define_in_dependencies(task_t* task, int number, ...); 
 void define_out_dependencies(task_t* task, int number, ...);
 int  push_task(task_t* task, char *group);

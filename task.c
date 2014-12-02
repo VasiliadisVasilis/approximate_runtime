@@ -39,7 +39,7 @@ int cmp_tasks(void *args1, void *args2){
 // I am just filling the descriptor's variables values.
 
 task_t* new_task(void  (*exec)(void *, unsigned int, unsigned int), void *args, 
-    unsigned int size_args ,int (*san)(void *, void *),
+    unsigned int size_args ,int (*san)(void *, void *, int),
     void *san_args, unsigned int san_size_args , unsigned char sig, unsigned int redo){
   static int id = 0;
   task_t *new = (task_t *) calloc(1,sizeof(task_t));

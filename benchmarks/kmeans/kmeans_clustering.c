@@ -278,13 +278,16 @@ void clusters_init(int nclusters, int npoints, int nfeatures)
 }
 
 #ifdef SANITY
-int reset_point(void* _args, void *dummy)
+int reset_point(void* _args, void *dummy, int crashed)
 {
   arg_t   *args      = (arg_t*) _args;
   int      npoints   = args->npoints;
   int      tid       = args->tid;
   int      work      = args->work;
   int start, end, i, index;
+
+  if (crashed == 0)
+    return SANITY_SUCCESS;
 
   start = tid*work;
   end = start+work;

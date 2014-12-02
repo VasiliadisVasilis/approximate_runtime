@@ -32,7 +32,7 @@ typedef struct tasks{
   void (*execution) (void *, unsigned int, unsigned int);
   
   //Sanity function of the task
-  int (*sanity_func) (void *,void *);
+  int (*sanity_func) (void *,void *, int);
   void* sanity_args;
   
   
@@ -64,7 +64,7 @@ typedef struct tasks{
 
 
 //Create a task and assign the task to a group
-task_t* new_task(void (*exec)(void *, unsigned int, unsigned int), void *args, unsigned int size_args ,int (*san)(void *, void *),
+task_t* new_task(void (*exec)(void *, unsigned int, unsigned int), void *args, unsigned int size_args ,int (*san)(void *, void *, int),
 		  void *san_args, unsigned int san_size_args , unsigned char sig, unsigned int redo);
 
 #ifdef DEPENDENCIES  

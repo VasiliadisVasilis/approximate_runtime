@@ -78,13 +78,13 @@ int main(int argc, char* argv[])
     }
   }
   
-  #if 0
+  #if 1
   for ( i=0; i<points; ++i)
   {
     for (j=0; j<points; ++j)
     {
       std::cout << (edges[0][i][j] == 0 ? "." : "o");
-      std::cout << (int)edges[1][i][j];
+//      std::cout << (int)edges[1][i][j];
     }
     std::cout << std::endl;
   }

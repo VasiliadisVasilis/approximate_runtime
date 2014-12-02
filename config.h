@@ -1,31 +1,28 @@
 #ifndef __CONFIG__
 #define __CONFIG__
 
-
-#ifdef ENABLE_CONTEXT
-  #warning [NoticeMe] Context_set/get mechanism ENABLED
+#ifdef DOUBLE_QUEUES
+      #define MAY_FAIL (whoami->reliable == NON_RELIABLE)
 #else
-  #warning [NoticeMe] Context_set/get mechanism disabled
-#endif
-#ifdef FAKE_SETCONTEXT
-#warning [NoticeMe] setcontext will be replaced by goto and disabled in coordinator.c
-#ifdef ENABLE_CONTEXT
-	#define setcontext(X) goto GET_CONTEXT
-#else
-	#define setcontex(X) void
-#endif
-#endif
-
-#ifdef ENABLE_SIGNALS
-  #warning [NoticeMe] Signal handler mechanism ENABLED
-#else
-  #warning [NoticeMe] Signal handler mechanism disabled
+      #define MAY_FAIL (exec_task->significance == NON_SIGNIFICANT)
 #endif
 
 #ifdef DUAL_TASKS
-  #warning [NoticeMe] Only non-significant tasks are injected faults ENABLED
+  #define TASK_SIGNIFICANCE exec_task->significance
 #else
-  #warning [NoticeMe] Only non-significant tasks are injected faults disabled
+  #define TASK_SIGNIFICANCE NON_SIGNIFICANT
+#endif
+
+#ifdef FAKE_SETCONTEXT
+  #ifdef ENABLE_CONTEXT
+    #define GET_CONTEXT_LABEL get_context_label:
+    #define setcontext(X) goto get_context_label
+  #else
+    #define GET_CONTEXT_LABEL  void
+    #define setcontext(X) void
+  #endif
+  #else
+    #define GET_CONTEXT_LABEL
 #endif
 
 #ifdef GEMFI 						

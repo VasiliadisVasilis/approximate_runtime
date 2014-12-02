@@ -80,84 +80,66 @@ void* main_acc(void *args){
 
   pthread_mutex_lock(&whoami->my_mutex);
   while(1)
-  {
+  { 
     exec_task=get_job(whoami);
     assert(exec_task);
     // if a fault is detected I am going to 
     // return to the following line
 #ifdef ENABLE_CONTEXT
-#ifdef DOUBLE_QUEUES
-    if ( whoami->reliable == NON_RELIABLE)
-#else
-      if ( exec_task->significance == NON_SIGNIFICANT )
-#endif
-      {
-        getcontext(&(whoami->context));
-      }
-GET_CONTEXT:
-    if(whoami->flag == TASK_NONE)
+    if ( MAY_FAIL )
     {
-      whoami->flag = TASK_EXECUTING;
+      getcontext(&(whoami->context));
+    }
 #endif
-#ifdef DUAL_TASKS
+GET_CONTEXT_LABEL
+    if(whoami->exec_status == TASK_NONE)
+    {
+      whoami->exec_status = TASK_EXECUTING;
       whoami->execution(whoami->execution_args, exec_task->task_id, 
-          exec_task->significance);
-#else
-      whoami->execution(whoami->execution_args, exec_task->task_id, 
-          NON_SIGNIFICANT);
-#endif
-#ifdef ENABLE_CONTEXT
-      whoami->flag = TASK_SANITY;
-#ifdef DOUBLE_QUEUES
-      if ( whoami->reliable == NON_RELIABLE )
-#else
-        if ( exec_task->significance == NON_SIGNIFICANT )
-#endif
-        {
-          setcontext(&(whoami->context));
-        }
+          TASK_SIGNIFICANCE);
+      whoami->exec_status = TASK_SANITY;
+      if ( MAY_FAIL)
+      {
+        setcontext(&(whoami->context));
+      }
     }
     /*vasiliad: What if a SIGSEV or w/e occurs during a trc/grc ??? */
-    else if ( whoami->flag == TASK_SANITY || whoami->flag == TASK_CRASHED 
-            || whoami->flag == TASK_TERMINATED )
+    else if ( MAY_FAIL 
+        && (   whoami->exec_status == TASK_SANITY 
+            || whoami->exec_status == TASK_CRASHED 
+            || whoami->exec_status == TASK_TERMINATED ) )
     {
-#endif
-      whoami->return_val = SANITY_SUCCESS;
-#ifdef ENABLE_SIGNALS
-      if ( whoami->flag == TASK_CRASHED )
-      {
-        printf("[RTS] TaskCrashed %d\n", whoami->task_id);
-      }
-#endif
+      am_i_faulty = 0;
 #ifdef GEMFI
-      am_i_faulty = gemfi_faulty();
+      am_i_faulty |= gemfi_faulty();
       if ( am_i_faulty )
       {
         printf("[RTS] Fault detected %d\n", whoami->task_id);
       }
-      #warning Will only execute a sanity check if the task has crashed
-      if ( (whoami->flag == TASK_TERMINATED || whoami->flag == TASK_CRASHED || am_i_faulty) 
-          && whoami->sanity )
+#endif      
+      am_i_faulty |= ( whoami->exec_status == TASK_TERMINATED );
+#ifdef ENABLE_SIGNALS
+      am_i_faulty |= ( whoami->exec_status == TASK_CRASHED );
+      if ( whoami->exec_status == TASK_CRASHED )
       {
-#else
-        if ( (whoami->flag == TASK_TERMINATED || whoami->flag == TASK_CRASHED) && whoami->sanity )
-        {
+        printf("[RTS] TaskCrashed %d\n", whoami->task_id);
+      }
 #endif
-          whoami->return_val = whoami->sanity(whoami->execution_args,
-              whoami->sanity_args);  
-        }
+      if ( whoami->sanity )
+      {
+        whoami->return_val = SANITY_SUCCESS;
+        whoami->return_val = whoami->sanity(whoami->execution_args, 
+            whoami->sanity_args, am_i_faulty);  
         if ( whoami->return_val != SANITY_SUCCESS  && whoami->redo > 0 )
         {
           whoami->redo--;
-          whoami->flag = TASK_NONE;
+          whoami->exec_status = TASK_NONE;
           setcontext(&(whoami->context));
         }
-#ifdef ENABLE_CONTEXT
       }
-#endif
-
-      finished_task(exec_task);
-      whoami->flag = TASK_NONE;
     }
-  }
 
+    finished_task(exec_task);
+    whoami->exec_status = TASK_NONE;
+  }
+}

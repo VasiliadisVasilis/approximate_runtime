@@ -28,9 +28,9 @@ typedef struct info_t{
   
   // variable used by approximate workers. 
   // It is mainly used as a safe-guard protecting the
-  // execution of the task function. If flag=0 then 
+  // execution of the task function. If exec_status=0 then 
   // the task function is not used.
-  volatile int flag;
+  volatile int exec_status;
   
   //synchronization variables.
   pthread_mutex_t my_mutex;
@@ -53,7 +53,7 @@ typedef struct info_t{
   //arguments of the tasks result check function
   void *sanity_args;
   // result check function
-  int (*sanity) (void *, void*);
+  int (*sanity) (void *, void*, int);
   
   // return value of result check function.
   unsigned int return_val;

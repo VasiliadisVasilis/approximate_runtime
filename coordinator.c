@@ -9,6 +9,7 @@
 #include "group.h"
 #include "debug.h"
 #include "config.h"
+#include "verbose.h"
 
 pool_t *pending_tasks;
 #ifdef DOUBLE_QUEUES
@@ -64,8 +65,8 @@ void action(int sig, siginfo_t* siginfo, void *context){
   pthread_t my_id = pthread_self();
   for ( i = 0 ; i < total_workers ; i++){
     if(my_id == my_threads[i].my_id ){
-      if(my_threads[i].flag == TASK_EXECUTING){
-        my_threads[i].flag = TASK_TERMINATED;
+      if(my_threads[i].exec_status == TASK_EXECUTING){
+        my_threads[i].exec_status = TASK_TERMINATED;
 #ifndef FAKE_SETCONTEXT
         setcontext(&(my_threads[i].context));
 #endif
@@ -86,9 +87,9 @@ void seg_fault_action(int sig, siginfo_t* siginfo, void *context){
   pthread_t my_id = pthread_self();
   for ( i = 0 ; i < total_workers ; i++){
     if(my_id == my_threads[i].my_id ){
-      if(my_threads[i].flag == TASK_EXECUTING)
+      if(my_threads[i].exec_status == TASK_EXECUTING)
       {
-        my_threads[i].flag = TASK_CRASHED;
+        my_threads[i].exec_status = TASK_CRASHED;
         DISABLE_FI( (my_threads+i) );
 #ifndef FAKE_SETCONTEXT
         setcontext(&(my_threads[i].context));

@@ -66,8 +66,12 @@ task_t* get_job(info *me){
       me->significance = element->significance;
       element->execution_thread = me->my_id;
       element->execution_id = me->id;
+      pthread_mutex_unlock(&ready->lock);
+      break;
     }
     pthread_mutex_unlock(&ready->lock);
+    pthread_yield();
+
   }while(element == NULL);
   return element;
 }

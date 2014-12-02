@@ -348,10 +348,13 @@ int main(int argc, char* argv[]) {
   {
     m5_writefile( *((long*)(x+i)), sizeof(double), i*sizeof(double));
   }
+  m5_exit(0);
+#else
+for ( i = 0 ; i < N ; i++)
+	printf("%lg %ld \n",x[i],*((long*)(x+i)));
 #endif
-  free(x1);
-  free(x);
-  free(mat);
-  return 0;
+//  free(x1);
+//  free(x);
+ // free(mat);
 }
 

@@ -75,7 +75,7 @@
 
 
 /*---< cluster() >-----------------------------------------------------------*/
-int cluster(int      numObjects,      /* number of input objects */
+int* cluster(int      numObjects,      /* number of input objects */
     int      numAttributes,   /* size of attribute of each object */
     float  **attributes,      /* [numObjects][numAttributes] */            
     int      nclusters,
@@ -106,8 +106,7 @@ int cluster(int      numObjects,      /* number of input objects */
   *cluster_centres = tmp_cluster_centres;
 
 
-  free(membership);
 
-  return 0;
+  return membership;
 }
 

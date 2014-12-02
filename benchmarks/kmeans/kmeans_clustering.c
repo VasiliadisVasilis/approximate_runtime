@@ -69,6 +69,10 @@
 #include <runtime.h>
 #include <m5op.h>
 
+#ifndef PROTECT
+#define assert(X) 
+#endif
+
 #define CALCULATE_CENTER
 
 #define OPTIMIZED_CENTER_COMPUTATION
@@ -124,7 +128,6 @@ float     *distance_prev;
 #ifdef CALCULATE_RADIUS
 float     *radius, *radius_prev;
 #endif
-int       *cluster_fixme;
 char      *moved;
 cluster_t *cluster_points;
 
@@ -274,6 +277,7 @@ void clusters_init(int nclusters, int npoints, int nfeatures)
   }
 }
 
+#ifdef SANITY
 int reset_point(void* _args, void *dummy)
 {
   arg_t   *args      = (arg_t*) _args;
@@ -296,6 +300,7 @@ int reset_point(void* _args, void *dummy)
   }
   return SANITY_SUCCESS;
 }
+#endif
 
 void process_point(void* _args, unsigned int task_id, unsigned int significance) 
 {
@@ -475,13 +480,14 @@ void process_cluster(void *_args, unsigned int task_id, unsigned int significanc
 calculateCenterDelta(int nfeatures, int nclusters)
 {
   int i;
-  float delta, rel;
+  float delta;
   cluster_t *p;
 
   for (p = cluster_points, i=0; i<nclusters; ++i, ++p )
   {
     delta = euclid_dist_2(p->prev_center, clusters[i], nfeatures);
-    rel = fabs((delta-p->prev_center_delta)/(p->prev_center_delta+1e-15));
+//    float rel;
+//    rel = fabs((delta-p->prev_center_delta)/(p->prev_center_delta+1e-15));
 //    printf("Cluster %d moved %g %g\n",i, delta, rel);
     p->prev_center_delta = delta;
     memcpy(p->prev_center, clusters[i], nfeatures*sizeof(float));
@@ -576,7 +582,6 @@ float** kmeans_clustering(float **_feature,    /* in: [npoints][nfeatures] */
 
   /* allocate space for returning variable clusters[] */
   moved         = (char*) calloc(npoints, sizeof(char));
-  cluster_fixme = (int*) calloc(nclusters, sizeof(int));
 #ifdef CALCULATE_RADIUS
   radius        = (float*) calloc(nclusters, sizeof(float));
   radius_prev   = (float*) calloc(nclusters, sizeof(float));
@@ -615,14 +620,22 @@ float** kmeans_clustering(float **_feature,    /* in: [npoints][nfeatures] */
       args.tid       = tid;
       args.work      = work;
       args.npoints   = npoints;
-
+#ifdef SANITY
       task = new_task(process_point, &args, sizeof(args), reset_point, NULL, 0,
           NON_SIGNIFICANT, 0);
+#else
+      task = new_task(process_point, &args, sizeof(args), NULL, NULL, 0,
+          NON_SIGNIFICANT, 0);
+#endif
       push_task(task, group_name);
       //process_point(&args);
     }
 
+#ifdef PROTECT
+    wait_group(group_name, NULL, NULL, SYNC_RATIO | SYNC_TIME, 16, 0, 1.0f, 0);
+#else
     wait_group(group_name, NULL, NULL, SYNC_RATIO, 0, 0, 1.0f, 0);
+#endif
     /*vasiliad: END OF TASK */
 
     /* vasiliad: Each cluster tries to incorporate its new points. If the accumulated
@@ -645,7 +658,7 @@ float** kmeans_clustering(float **_feature,    /* in: [npoints][nfeatures] */
     args.nfeatures = nfeatures;
     args.npoints = npoints;
     args.nclusters = nclusters;
-    wait_group(group_name, NULL, NULL, SYNC_RATIO | SYNC_TIME, 16, 0, 1.0f, 0);
+    wait_group(group_name, NULL, NULL, SYNC_RATIO, 0, 0, 1.0f, 0);
 
     clear_move_status(&args);
 //    printf("*** Changed %d\n", sum_delta);

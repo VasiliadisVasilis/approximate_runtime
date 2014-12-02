@@ -101,6 +101,7 @@ void usage(char *argv0) {
 
 /*---< main() >-------------------------------------------------------------*/
 int main(int argc, char **argv) {
+           int    *membership;
            int     non_sig;
            int     opt;
     extern char   *optarg;
@@ -212,12 +213,18 @@ int main(int argc, char **argv) {
   non_sig = num_omp_threads/2;
   if ( non_sig == 0 )
     non_sig = 1;
+#ifdef GEMFI
+  m5_switchcpu();
+#endif
   init_system(num_omp_threads-non_sig, non_sig);
 	timing = my_time();
+#ifdef GEMFI
+ m5_dumpreset_stats(0,0); 
+#endif
     for (i=0; i<nloops; i++) {
         
         cluster_centres = NULL;
-        cluster(numObjects,
+        membership = cluster(numObjects,
                 numAttributes,
                 attributes,           /* [numObjects][numAttributes] */                
                 nclusters,
@@ -227,9 +234,18 @@ int main(int argc, char **argv) {
                );
      
     }
-    timing = my_time() - timing;
-	
-
+#ifdef GEMFI
+ m5_dumpreset_stats(0,0); 
+#endif
+  timing = my_time() - timing;
+  
+  FILE* out = fopen("out.bin", "wb");
+  fwrite(&numObjects, sizeof(int), 1, out);
+  fwrite(membership, sizeof(int), numObjects, out);
+  fwrite(cluster_centres[0], sizeof(float), nclusters*numAttributes, out);
+  fclose(out);
+  free(membership);
+  printf("number of Points %d\n", numObjects);
 	printf("number of Clusters %d\n",nclusters); 
 	printf("number of Attributes %d\n\n",numAttributes); 
   /*  	printf("Cluster Centers Output\n"); 

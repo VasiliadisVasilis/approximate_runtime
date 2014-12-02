@@ -44,7 +44,7 @@
 #endif
 
 /* cluster.c */
-int     cluster(int, int, float**, int, float, float***, int);
+int    *cluster(int, int, float**, int, float, float***, int);
 
 /* kmeans_clustering.c */
 float **kmeans_clustering(float**, int, int, int, float, int*, int);

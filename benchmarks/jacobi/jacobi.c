@@ -32,7 +32,7 @@ int jacobi(double *A, double *x, double *x1,  double *b, double* y,
 double *construct_right(double* ret, int size, double *mat, double* sol);
 
 #ifdef SANITY
-int jacobi_trc(void *_args, void* not_used_at_all);
+int jacobi_trc(void *_args, void* not_used_at_all, int faulty);
 #endif
 
 
@@ -122,12 +122,15 @@ double *construct_jacobi_matrix(double *ret, int diagonally_dominant, int size) 
 
 
 #ifdef SANITY
-int jacobi_trc(void *_args, void* not_used_at_all)
+int jacobi_trc(void *_args, void* not_used_at_all, int faulty)
 {
   arg_t *a = (arg_t*) _args;
   int i, size, c;
   double *x, *x1;
   int i_b, i_e;
+
+  if ( faulty == 0 )
+    return SANITY_SUCCESS;
 
   i = a->i;
   size = a->size;

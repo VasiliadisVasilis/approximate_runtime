@@ -69,7 +69,7 @@
 #include <limits.h>
 #include <math.h>
 #include <float.h>
-#include <omp.h>
+//#include <omp.h>
 
 #include "kmeans.h"
 

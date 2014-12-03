@@ -75,7 +75,7 @@
 #include <math.h>
 #include <sys/types.h>
 #include <fcntl.h>
-#include <omp.h>
+//#include <omp.h>
 #include <sys/mman.h>
 #include <unistd.h>
 #include <runtime.h>

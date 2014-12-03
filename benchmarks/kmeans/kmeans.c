@@ -279,15 +279,15 @@ int main(int argc, char **argv) {
   int pos = 0;
   for ( i=0; i<sizeof(numObjects); ++i, ++pos)
   {
-    m5_writefile(((unsigned char*)&numObjects)+i, sizeof(char), pos);
+    m5_writefile(*(((unsigned char*)&numObjects)+i), sizeof(char), pos);
   }
   for ( i=0; i<sizeof(int)*numObjects; ++i, ++pos )
   {
-    m5_writefile(((unsigned char*)membership)+i, sizeof(char), pos);
+    m5_writefile(*(((unsigned char*)membership)+i), sizeof(char), pos);
   }
   for ( i=0; i<sizeof(float)*nclusters*numAttributes; ++i, ++pos)
   {
-    m5_writefile((unsigned char*)(cluster_centres[0])+i, sizeof(char), pos);
+    m5_writefile(*((unsigned char*)(cluster_centres[0])+i), sizeof(char), pos);
   }
 #else
   FILE* out = fopen("out.bin", "wb");

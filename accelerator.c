@@ -102,10 +102,12 @@ GET_CONTEXT_LABEL
       whoami->execution(whoami->execution_args, exec_task->task_id, 
           TASK_SIGNIFICANCE);
       whoami->exec_status = TASK_SANITY;
+#if ENABLE_CONTEXT
       if ( MAY_FAIL)
       {
         setcontext(&(whoami->context));
       }
+#endif
     }
     /*vasiliad: What if a SIGSEV or w/e occurs during a trc/grc ??? */
     else if ( MAY_FAIL 
@@ -138,7 +140,9 @@ GET_CONTEXT_LABEL
         {
           whoami->redo--;
           whoami->exec_status = TASK_NONE;
+#if ENABLE_CONTEXT          
           setcontext(&(whoami->context));
+#endif          
         }
       }
     }

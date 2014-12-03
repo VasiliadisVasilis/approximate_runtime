@@ -5,11 +5,8 @@ LIB=-L../../ -L../../fi
 INCLUDE=-I../../include/ -I../../fi
 CC?=clang
 
-kmeans: cluster.o getopt.o kmeans.o kmeans_clustering.o runtime
+kmeans: cluster.o getopt.o kmeans.o kmeans_clustering.o
 	gcc $(CFLAGS) $(LIB) $(INCLUDE) cluster.o getopt.o kmeans.o kmeans_clustering.o  -o kmeans $(LDFLAGS)
-
-runtime:
-	make -C ../../ "CFLAGS=$(CFLAGS)"
 
 %.o: %.[ch]
 	$(CC) $(CFLAGS) $(LIB) $(INCLUDE) $< -c

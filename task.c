@@ -23,8 +23,12 @@ int explicit_sync(void *args);
 int del_non_signf(void *args1, void *args2)
 {
   task_t *t = (task_t*) args1;
+  if ( t->significance == NON_SIGNIFICANT )
+  {
+    return 1;
+  }
 
-  return (t->significance == NON_SIGNIFICANT);
+  return 0;
 }
 
 int cmp_tasks(void *args1, void *args2){

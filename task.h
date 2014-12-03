@@ -73,6 +73,8 @@ void define_out_dependencies(task_t* task, int number, ...);
 void print_dependecies(task_t *task);
 #endif
 
+
+int cmp_tasks(void *args1, void *args2);
 int free_args(void *_task);
 int actual_push(void *_task);
 int push_task(task_t* task, char *group);

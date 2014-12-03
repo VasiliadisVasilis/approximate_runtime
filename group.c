@@ -17,6 +17,7 @@
 #include "config.h"
 
 
+extern pool_t *ready_tasks;
 extern info *my_threads;
 extern int debug_flag ;
 extern unsigned int total_workers;
@@ -155,6 +156,7 @@ int wait_group_ratio(group_t* group, float ratio)
 
 int wait_group_time(group_t *group, unsigned int time_ms)
 {
+  task_t *del;
   int ret, removed;
   struct timespec watchdog ={0, 0};
   size_t secs;
@@ -179,15 +181,18 @@ int wait_group_time(group_t *group, unsigned int time_ms)
       debug("Wait on watchdog...Done\n");
       if(group->finished_sig_num != group->total_sig_tasks){
         group->ratio = 0.0;
+        pthread_mutex_lock(&ready_tasks->lock);
         pthread_mutex_lock(&group->pending_q->lock);
-        while ( delete_element(group->pending_q, del_non_signf, NULL ) != NULL )
+        while ( (del=delete_element(group->pending_q, del_non_signf, NULL )) != NULL )
         {
+          assert(delete_element(ready_tasks, cmp_tasks, del));
           removed ++;
         }
         pthread_mutex_unlock(&group->pending_q->lock);
         pthread_mutex_lock(&group->executing_q->lock);
         removed += exec_on_elem(group->executing_q,force_termination); 
         pthread_mutex_unlock(&group->executing_q->lock);
+        pthread_mutex_unlock(&ready_tasks->lock);
         debug("Wait for significant tasks...\n");
         pthread_cond_wait(&group->condition, &group->lock);
         debug("Wait for significant tasks...Done\n");
@@ -202,9 +207,11 @@ int wait_group_time(group_t *group, unsigned int time_ms)
         if(group->executing_num != 0)
         {
           if(!group->terminated){
+            pthread_mutex_lock(&ready_tasks->lock);
             pthread_mutex_lock(&group->pending_q->lock);
-            while (delete_element(group->pending_q, del_non_signf, NULL ) != NULL )
+            while ( (del=delete_element(group->pending_q, del_non_signf, NULL )) != NULL )
             {
+              assert(delete_element(ready_tasks, cmp_tasks, del));
               removed ++;
             }
             pthread_mutex_unlock(&group->pending_q->lock);
@@ -212,8 +219,8 @@ int wait_group_time(group_t *group, unsigned int time_ms)
             removed += exec_on_elem(group->executing_q,force_termination); 
             pthread_mutex_unlock(&group->executing_q->lock);
             group->terminated = 0;
-            #warning this might be wrong ...
             pthread_mutex_unlock(&group->lock);
+            pthread_mutex_unlock(&ready_tasks->lock);
             if (removed)
             {
               printf("[RTS] Kill non-significant tasks %d.\n", removed);

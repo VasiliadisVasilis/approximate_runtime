@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include "list.h"
+#include "task.h"
 
 
 pool_t* create_pool(){
@@ -83,11 +84,10 @@ void* remove_element(pool_t *pool, list_t *node, list_t *prev){
     node->next = NULL;
     ptr = node->args;
   }
-
+  
   free(node);
 
   return ptr;
-
 }
 
 void* delete_element(pool_t *pool, int (*cmp) (void *,void *),void *args ){

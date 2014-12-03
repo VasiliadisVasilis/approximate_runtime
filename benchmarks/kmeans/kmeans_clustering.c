@@ -72,6 +72,7 @@
 #include <unistd.h>
 
 #ifndef PROTECT
+#undef  assert
 #define assert(X) 
 #endif
 

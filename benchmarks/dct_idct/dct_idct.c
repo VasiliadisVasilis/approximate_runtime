@@ -124,9 +124,9 @@ int _dct_trc(long _r, long _c, long _i, long _j, int faulty)
   else
     c_e = WIDTH; 
 
-  printf("[RTS] TRC\n");
   if ( faulty )
   {
+    printf("[RTS] TRC %d %d %d %d %d\n", _r, _c, _i, _j, faulty);
     for ( c = _c; c<c_e; ++c )
     {
       for ( i=_i; i<_i+4; ++i )
@@ -146,6 +146,7 @@ int _dct_trc(long _r, long _c, long _i, long _j, int faulty)
         {
           if (dct[(r * 8 + i)*8*WIDTH + c * 8 + j]*quant_table[i*8+j] > MAX_DCT_COEFF )
           {
+            printf("[RTS] TRC %d %d %d %d %d\n", _r, _c, _i, _j, faulty);
             dct[(r * 8 + i)*8*WIDTH + c * 8 + j] = 0;
           }
         }

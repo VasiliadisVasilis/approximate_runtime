@@ -276,21 +276,34 @@ int main(int argc, char **argv) {
   timing = my_time() - timing;
 
 #ifdef GEMFI
-  m5_writefile(numObjects, sizeof(int), 0);
-  for ( i=0; i<numObjects; ++i )
+  int pos = 0;
+  for ( i=0; i<sizeof(numObjects); ++i, ++pos)
   {
-    m5_writefile(membership[i], sizeof(int), (1+i)*sizeof(int));
+    m5_writefile(((unsigned char*)&numObjects)+i, sizeof(char), pos);
   }
-  for ( i=0; i<nclusters*numAttributes; ++i)
+  for ( i=0; i<sizeof(int)*numObjects; ++i, ++pos )
   {
-    m5_writefile(*((int*)(&membership[i])), sizeof(float),
-        (1+numObjects)*sizeof(int)+i*sizeof(float));
+    m5_writefile(((unsigned char*)membership)+i, sizeof(char), pos);
+  }
+  for ( i=0; i<sizeof(float)*nclusters*numAttributes; ++i, ++pos)
+  {
+    m5_writefile((unsigned char*)(cluster_centres[0])+i, sizeof(char), pos);
   }
 #else
   FILE* out = fopen("out.bin", "wb");
-  fwrite(&numObjects, sizeof(long), 1, out);
-  fwrite(membership, sizeof(long), numObjects, out);
-  fwrite(cluster_centres[0], sizeof(double), nclusters*numAttributes, out);
+  int pos = 0;
+  for ( i=0; i<sizeof(numObjects); ++i, ++pos)
+  {
+    fwrite(((unsigned char*)&numObjects)+i, sizeof(char), 1, out);
+  }
+  for ( i=0; i<sizeof(int)*numObjects; ++i, ++pos )
+  {
+    fwrite(((unsigned char*)membership)+i, sizeof(char), 1, out);
+  }
+  for ( i=0; i<sizeof(float)*nclusters*numAttributes; ++i, ++pos)
+  {
+    fwrite((unsigned char*)(cluster_centres[0])+i, sizeof(char), 1, out);
+  }
   fclose(out);
 #endif
   free(membership);

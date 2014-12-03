@@ -60,6 +60,7 @@ void my_action(int sig, siginfo_t* siginfo, void *context){
   exit(0);
 }
 
+#if ENABLE_SIGNALS && ENABLE_CONTEXT
 void action(int sig, siginfo_t* siginfo, void *context){
   int i;
   pthread_t my_id = pthread_self();
@@ -67,9 +68,7 @@ void action(int sig, siginfo_t* siginfo, void *context){
     if(my_id == my_threads[i].my_id ){
       if(my_threads[i].exec_status == TASK_EXECUTING){
         my_threads[i].exec_status = TASK_TERMINATED;
-#ifndef FAKE_SETCONTEXT
         setcontext(&(my_threads[i].context));
-#endif
         return ;
       }
       else{
@@ -79,8 +78,9 @@ void action(int sig, siginfo_t* siginfo, void *context){
   }
   return ;
 }
+#endif
 
-
+#if ENABLE_SIGNALS && ENABLE_CONTEXT
 void seg_fault_action(int sig, siginfo_t* siginfo, void *context){
   int i;
 
@@ -89,11 +89,9 @@ void seg_fault_action(int sig, siginfo_t* siginfo, void *context){
     if(my_id == my_threads[i].my_id ){
       if(my_threads[i].exec_status == TASK_EXECUTING)
       {
-        my_threads[i].exec_status = TASK_CRASHED;
         DISABLE_FI( (my_threads+i) );
-#ifndef FAKE_SETCONTEXT
+        my_threads[i].exec_status = TASK_CRASHED;
         setcontext(&(my_threads[i].context));
-#endif
         return ;
       }
       else{
@@ -101,9 +99,9 @@ void seg_fault_action(int sig, siginfo_t* siginfo, void *context){
       }
     }
   }
-  return ;
+  return;
 }
-
+#endif
 
 void* init_acc(void *args){
 #ifdef ENABLE_SIGNALS

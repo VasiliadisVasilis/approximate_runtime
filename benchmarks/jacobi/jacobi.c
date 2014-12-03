@@ -11,7 +11,7 @@
 
 long my_time();
 
-#define TASK_WORK 50
+#define TASK_WORK 10
 #define THRESHOLD 3 	// should be properly calculated
 
 typedef struct ARG_T arg_t;
@@ -152,7 +152,6 @@ int jacobi_trc(void *_args, void* not_used_at_all, int faulty)
 
   return SANITY_SUCCESS;
 }
-
 #endif
 
 void jacobi_task(void *_args, unsigned int task_id, unsigned int significance)
@@ -352,12 +351,11 @@ int main(int argc, char* argv[]) {
     m5_writefile( *((long*)(x+i)), sizeof(double), i*sizeof(double));
   }
   m5_exit(0);
-#else
-for ( i = 0 ; i < N ; i++)
-	printf("%lg %ld \n",x[i],*((long*)(x+i)));
 #endif
 //  free(x1);
 //  free(x);
  // free(mat);
+
+ return 0;
 }
 

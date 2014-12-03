@@ -39,7 +39,6 @@ int _dct_trc(long _r, long _c, long _i, long _j, int faulty);
 void dct_task(void* args, unsigned int task_id, unsigned int significance);
 void idct_task(void* args, unsigned int task_id, unsigned int significance);
 void _idct_task(long _r, long _c);
-void _dct_task(long _r, long _c, long _i, long _j);
 
 int *quant_table;
 
@@ -125,6 +124,7 @@ int _dct_trc(long _r, long _c, long _i, long _j, int faulty)
   else
     c_e = WIDTH; 
 
+  printf("[RTS] TRC\n");
   if ( faulty )
   {
     for ( c = _c; c<c_e; ++c )
@@ -136,6 +136,7 @@ int _dct_trc(long _r, long _c, long _i, long _j, int faulty)
         }
     }
   }
+#ifndef RAZOR
   else
   {
     for ( c = _c; c<c_e; ++c )
@@ -150,6 +151,7 @@ int _dct_trc(long _r, long _c, long _i, long _j, int faulty)
         }
     }
   }
+#endif
   return SANITY_SUCCESS;
 }
 #endif
@@ -157,6 +159,13 @@ int _dct_trc(long _r, long _c, long _i, long _j, int faulty)
 void dct_task(void *_args, unsigned int task_id, unsigned int significance)
 {
   dct_task_args_t *args = (dct_task_args_t*) _args;
+  long _r = args->r;
+  long _c = args->c;
+  long _i = args->i;
+  long _j = args->j;
+  long x, y, i, j, r, c;
+  long c_e;
+  double sum = 0;
 
 #ifdef GEMFI
   if ( significance == NON_SIGNIFICANT )
@@ -181,21 +190,6 @@ void dct_task(void *_args, unsigned int task_id, unsigned int significance)
     printf("sig\n");
   }
 #endif
-  _dct_task(args->r, args->c, args->i, args->j);
-
-#ifdef GEMFI
-  if ( significance == NON_SIGNIFICANT )
-  {
-    fi_activate_inst(task_id, PAUSE);
-  }
-#endif
-}
-
-void _dct_task(long _r, long _c, long _i, long _j)
-{
-  long x, y, i, j, r, c;
-  long c_e;
-  double sum = 0;
 
   r = _r;
   c = _c;
@@ -220,6 +214,13 @@ void _dct_task(long _r, long _c, long _i, long _j)
         quantization_task(dct, quant_table[i*8+j], r, c, i, j);
       }
   }
+
+#ifdef GEMFI
+  if ( significance == NON_SIGNIFICANT )
+  {
+    fi_activate_inst(task_id, PAUSE);
+  }
+#endif
 }
 
 void spawn_dct_task(long r, long c, long i, long j, uint8_t significance)

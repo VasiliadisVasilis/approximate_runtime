@@ -8,9 +8,6 @@
 #else
   #warning [NoticeMe] Context_set/get mechanism disabled
 #endif
-#ifdef FAKE_SETCONTEXT
-  #warning [NoticeMe] setcontext will be replaced by goto and disabled in coordinator.c
-#endif
 #ifdef DUAL_TASKS
   #warning [NoticeMe] Only non-significant tasks are injected faults ENABLED
 #else

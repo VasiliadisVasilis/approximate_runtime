@@ -1,6 +1,60 @@
 #ifndef __CONFIG__
 #define __CONFIG__
 
+#ifdef ENABLE_CONTEXT
+#error Do not set this manually
+#endif
+
+#ifdef ENABLE_SIGNALS
+#error Do not set this manually
+#endif
+
+#ifdef DUAL_TASKS
+#error Do not set this manually
+#endif
+
+#ifdef RAZOR
+#error Do not set this manually
+#endif
+
+#ifndef NOPROTECT
+  #define NOPROTECT 0
+#else
+  #warning NOPROTECT --- Enabled
+  #undef NOPROTECT
+  #define NOPROTECT 1
+#endif
+
+#ifndef SOFTWARE
+  #define SOFTWARE 0
+#else
+  #warning SOFTWARE --- Enabled
+  #undef SOFTWARE
+  #define SOFTWARE 1
+#endif
+
+#ifndef ALLFEATURES
+  #define ALLFEATURES 0
+#else
+  #warning ALLFEATURES --- Enabled
+  #undef ALLFEATURES
+  #define ALLFEATURES 1
+#endif
+
+#if (SOFTWARE + NOPROTECT + ALLFEATURES) != 1
+#error Set ONLY one of the following NOPROTECT, SOFTWARE, ALLFEATURES
+#endif
+
+#if SOFTWARE == 1 || ALLFEATURES == 1
+  #define ENABLE_SIGNALS 1
+  #define ENABLE_CONTEXT 1
+  #define DUAL_TASKS
+#endif
+
+#if ALLFEATURES == 1
+  #define RAZOR
+#endif
+
 #if defined(ENABLE_SIGNALS) && defined(ENABLE_CONTEXT)==0
   #error Signals enabled without Context
 #endif
@@ -17,17 +71,6 @@
   #define TASK_SIGNIFICANCE NON_SIGNIFICANT
 #endif
 
-#ifdef FAKE_SETCONTEXT
-  #ifdef ENABLE_CONTEXT
-    #define GET_CONTEXT_LABEL get_context_label:
-    #define setcontext(X) goto get_context_label
-  #else
-    #define GET_CONTEXT_LABEL  void
-    #define setcontext(X) void
-  #endif
-  #else
-    #define GET_CONTEXT_LABEL
-#endif
 
 #ifdef GEMFI 						
 #include "m5op.h"

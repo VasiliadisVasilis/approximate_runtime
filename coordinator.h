@@ -33,7 +33,6 @@ typedef struct info_t{
   volatile int exec_status;
   
   //synchronization variables.
-  pthread_mutex_t my_mutex;
   pthread_cond_t cond;
   
   // work is set to zero when the worker has no

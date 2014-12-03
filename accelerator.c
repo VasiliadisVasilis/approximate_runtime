@@ -78,96 +78,59 @@ task_t* get_job(info *me){
   return element;
 }
 
-#if defined(ENABLE_CONTEXT) == 0 && defined(ENABLE_SIGNALS) == 0
+#if NOPROTECT 
+/* Just execute tasks as non-significant */
 void* main_acc(void *args){
   info *whoami = (info*) args;
   task_t *exec_task;
-  uint64_t am_i_faulty;
 
-  pthread_mutex_lock(&whoami->my_mutex);
   while(1)
   { 
     exec_task=get_job(whoami);
- redo_task:
-    assert(exec_task);
     whoami->execution(whoami->execution_args, exec_task->task_id, 
-        TASK_SIGNIFICANCE);
-    if ( MAY_FAIL )
-    {
-     if ( whoami->sanity )
-      {
-        am_i_faulty = 0;
-        whoami->return_val = SANITY_SUCCESS;
-        whoami->return_val = whoami->sanity(whoami->execution_args, 
-            whoami->sanity_args, am_i_faulty);  
-        if ( whoami->return_val != SANITY_SUCCESS  && whoami->redo > 0 )
-        {
-          whoami->redo--;
-          whoami->exec_status = TASK_NONE;
-          goto redo_task;
-        }
-      }
-    }
-
+       NON_SIGNIFICANT);
     finished_task(exec_task);
-    whoami->exec_status = TASK_NONE;
   }
 }
-#else
-void* main_acc(void *args){
+#elif SOFTWARE
+/* Execute RCF for EVERY task that might get injected a fault */
+void* main_acc(void *args)
+{
   info *whoami = (info*) args;
   task_t *exec_task;
   uint64_t am_i_faulty;
 
-  pthread_mutex_lock(&whoami->my_mutex);
   while(1)
   { 
     exec_task=get_job(whoami);
     assert(exec_task);
-    // if a fault is detected I am going to 
-    // return to the following line
-#ifdef ENABLE_CONTEXT
     if ( MAY_FAIL )
     {
       getcontext(&(whoami->context));
     }
-#endif
-GET_CONTEXT_LABEL
     if(whoami->exec_status == TASK_NONE)
     {
       whoami->exec_status = TASK_EXECUTING;
       whoami->execution(whoami->execution_args, exec_task->task_id, 
           TASK_SIGNIFICANCE);
       whoami->exec_status = TASK_SANITY;
-#if ENABLE_CONTEXT
       if ( MAY_FAIL)
       {
         setcontext(&(whoami->context));
       }
-#endif
     }
-    /*vasiliad: What if a SIGSEV or w/e occurs during a trc/grc ??? */
     else if ( MAY_FAIL 
-        && (   whoami->exec_status == TASK_SANITY 
+        && (  whoami->exec_status == TASK_SANITY 
             || whoami->exec_status == TASK_CRASHED 
             || whoami->exec_status == TASK_TERMINATED ) )
     {
       am_i_faulty = 0;
-#ifdef RAZOR
-      am_i_faulty |= gemfi_faulty();
-      if ( am_i_faulty )
-      {
-        printf("[RTS] Fault detected %d\n", whoami->task_id);
-      }
-#endif      
       am_i_faulty |= ( whoami->exec_status == TASK_TERMINATED );
-#ifdef ENABLE_SIGNALS
       am_i_faulty |= ( whoami->exec_status == TASK_CRASHED );
       if ( whoami->exec_status == TASK_CRASHED )
       {
         printf("[RTS] TaskCrashed %d\n", whoami->task_id);
       }
-#endif
       if ( whoami->sanity )
       {
         whoami->return_val = SANITY_SUCCESS;
@@ -177,9 +140,7 @@ GET_CONTEXT_LABEL
         {
           whoami->redo--;
           whoami->exec_status = TASK_NONE;
-#if ENABLE_CONTEXT          
           setcontext(&(whoami->context));
-#endif          
         }
       }
     }
@@ -188,4 +149,67 @@ GET_CONTEXT_LABEL
     whoami->exec_status = TASK_NONE;
   }
 }
+#elif ALLFEATURES 
+/* Execute RCF only for tasks which have experienced a fault/terminated */
+void* main_acc(void *args)
+{
+  info *whoami = (info*) args;
+  task_t *exec_task;
+  uint64_t am_i_faulty;
+
+  while(1)
+  { 
+    exec_task=get_job(whoami);
+    assert(exec_task);
+    if ( MAY_FAIL )
+    {
+      getcontext(&(whoami->context));
+    }
+    if(whoami->exec_status == TASK_NONE)
+    {
+      whoami->exec_status = TASK_EXECUTING;
+      whoami->execution(whoami->execution_args, exec_task->task_id, 
+          TASK_SIGNIFICANCE);
+      whoami->exec_status = TASK_SANITY;
+      if ( MAY_FAIL)
+      {
+        setcontext(&(whoami->context));
+      }
+    }
+    else if ( MAY_FAIL 
+        && (   whoami->exec_status == TASK_SANITY 
+            || whoami->exec_status == TASK_CRASHED 
+            || whoami->exec_status == TASK_TERMINATED ) )
+    {
+      am_i_faulty = 0;
+      am_i_faulty |= gemfi_faulty();
+      if ( am_i_faulty )
+      {
+        printf("[RTS] Fault detected %d\n", whoami->task_id);
+      }
+      am_i_faulty |= ( whoami->exec_status == TASK_TERMINATED );
+      am_i_faulty |= ( whoami->exec_status == TASK_CRASHED );
+      if ( whoami->exec_status == TASK_CRASHED )
+      {
+        printf("[RTS] TaskCrashed %d\n", whoami->task_id);
+      }
+      if ( am_i_faulty && whoami->sanity )
+      {
+        whoami->return_val = SANITY_SUCCESS;
+        whoami->return_val = whoami->sanity(whoami->execution_args, 
+            whoami->sanity_args, am_i_faulty);  
+        if ( whoami->return_val != SANITY_SUCCESS  && whoami->redo > 0 )
+        {
+          whoami->redo--;
+          whoami->exec_status = TASK_NONE;
+          setcontext(&(whoami->context));
+        }
+      }
+    }
+    finished_task(exec_task);
+    whoami->exec_status = TASK_NONE;
+  }
+}
+#else
+#error You should have never reached this, check config.h for ALLFEATURES/SOFTWARE/NOPROTECT
 #endif

@@ -1,3 +1,0 @@
-#!/bin/bash
-make clean
-make CFLAGS="-DGEMFI -DDUAL_TASKS -DENABLE_CONTEXT -DENABLE_SIGNALS" CC=$1

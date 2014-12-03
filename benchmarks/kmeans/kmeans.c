@@ -271,6 +271,7 @@ int main(int argc, char **argv) {
      
     }
 #ifdef GEMFI
+ stop_exec();
  m5_dumpreset_stats(0,0); 
 #endif
   timing = my_time() - timing;

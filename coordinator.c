@@ -60,7 +60,7 @@ void my_action(int sig, siginfo_t* siginfo, void *context){
   exit(0);
 }
 
-#if ENABLE_SIGNALS && ENABLE_CONTEXT
+#if defined(ENABLE_SIGNALS) && defined(ENABLE_CONTEXT)
 void action(int sig, siginfo_t* siginfo, void *context){
   int i;
   pthread_t my_id = pthread_self();
@@ -80,7 +80,7 @@ void action(int sig, siginfo_t* siginfo, void *context){
 }
 #endif
 
-#if ENABLE_SIGNALS && ENABLE_CONTEXT
+#if defined(ENABLE_SIGNALS) && defined(ENABLE_CONTEXT)
 void seg_fault_action(int sig, siginfo_t* siginfo, void *context){
   int i;
 

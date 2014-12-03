@@ -1,2 +1,2 @@
 #!/bin/bash
-./kmeans -n 4 -i 100 
+./kmeans -n 2 -i 100 

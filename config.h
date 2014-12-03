@@ -1,6 +1,10 @@
 #ifndef __CONFIG__
 #define __CONFIG__
 
+#if defined(ENABLE_SIGNALS) && defined(ENABLE_CONTEXT)==0
+  #error Signals enabled without Context
+#endif
+
 #ifdef DOUBLE_QUEUES
       #define MAY_FAIL (whoami->reliable == NON_RELIABLE)
 #else

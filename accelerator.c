@@ -2,8 +2,10 @@
 #include <stdio.h>
 #include <assert.h>
 #include <stdint.h>
+#include <pthread.h>
 #include "coordinator.h"
 #include "task.h"
+
 /* Include this *after* task.h if you wish to access task_t fields */
 #include "include/runtime.h"
 #include "debug.h"
@@ -76,7 +78,42 @@ task_t* get_job(info *me){
   return element;
 }
 
+#if defined(ENABLE_CONTEXT) == 0 && defined(ENABLE_SIGNALS) == 0
+void* main_acc(void *args){
+  info *whoami = (info*) args;
+  task_t *exec_task;
+  uint64_t am_i_faulty;
 
+  pthread_mutex_lock(&whoami->my_mutex);
+  while(1)
+  { 
+    exec_task=get_job(whoami);
+ redo_task:
+    assert(exec_task);
+    whoami->execution(whoami->execution_args, exec_task->task_id, 
+        TASK_SIGNIFICANCE);
+    if ( MAY_FAIL )
+    {
+     if ( whoami->sanity )
+      {
+        am_i_faulty = 0;
+        whoami->return_val = SANITY_SUCCESS;
+        whoami->return_val = whoami->sanity(whoami->execution_args, 
+            whoami->sanity_args, am_i_faulty);  
+        if ( whoami->return_val != SANITY_SUCCESS  && whoami->redo > 0 )
+        {
+          whoami->redo--;
+          whoami->exec_status = TASK_NONE;
+          goto redo_task;
+        }
+      }
+    }
+
+    finished_task(exec_task);
+    whoami->exec_status = TASK_NONE;
+  }
+}
+#else
 void* main_acc(void *args){
   info *whoami = (info*) args;
   task_t *exec_task;
@@ -102,10 +139,12 @@ GET_CONTEXT_LABEL
       whoami->execution(whoami->execution_args, exec_task->task_id, 
           TASK_SIGNIFICANCE);
       whoami->exec_status = TASK_SANITY;
+#if ENABLE_CONTEXT
       if ( MAY_FAIL)
       {
         setcontext(&(whoami->context));
       }
+#endif
     }
     /*vasiliad: What if a SIGSEV or w/e occurs during a trc/grc ??? */
     else if ( MAY_FAIL 
@@ -138,7 +177,9 @@ GET_CONTEXT_LABEL
         {
           whoami->redo--;
           whoami->exec_status = TASK_NONE;
+#if ENABLE_CONTEXT          
           setcontext(&(whoami->context));
+#endif          
         }
       }
     }
@@ -147,3 +188,4 @@ GET_CONTEXT_LABEL
     whoami->exec_status = TASK_NONE;
   }
 }
+#endif

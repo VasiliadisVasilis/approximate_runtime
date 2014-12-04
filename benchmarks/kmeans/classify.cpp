@@ -120,7 +120,7 @@ int main(int argc, char* argv[])
   }
   #endif
 
-  rel_err = err*100.0/(double)(total);
+  rel_err = err/(double)(total);
   //std::cout << "Err: " << err << " out of " << total << " (" << rel_err << "%)" << std::endl;
   if ( rel_err < 0.1 )
   {

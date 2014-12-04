@@ -119,6 +119,7 @@ void* init_acc(void *args){
   if ( (sigaction(SIGILL,&sfh,NULL)<0)||
       (sigaction(SIGFPE,&sfh,NULL)<0)||
       (sigaction(SIGPIPE,&sfh,NULL)<0)||
+      (sigaction(SIGABRT,&sfh,NULL)<0)||
       (sigaction(SIGBUS,&sfh,NULL)<0)||
       (sigaction(SIGUSR1,&act,NULL)<0)||
       (sigaction(SIGUSR2,&act,NULL)<0)||

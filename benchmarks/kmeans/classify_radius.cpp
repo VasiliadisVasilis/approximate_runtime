@@ -159,11 +159,11 @@ int main(int argc, char* argv[])
 
 
 
- /* if ( identical )
+  if ( identical )
   {
     std::cout << "strict";
     return 0;
-  } */
+  } 
 #if 0
   /* This simulates faults during the execution ... cheap but seems to be working */
   faults = 0;

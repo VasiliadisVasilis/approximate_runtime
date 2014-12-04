@@ -11,6 +11,7 @@ int main(int argc, char* argv[])
   std::map<int,int>  populations;
   int points, points2;
   int p1, p2, i, j, faults;
+  int identical = 1;
 
   if ( argc != 3 )
   {
@@ -40,10 +41,18 @@ int main(int argc, char* argv[])
     memberships[1].push_back(p2);
 
     populations[p2] = populations[p2] +1;
+
+    identical &= (p1==p2);
   }
 
   input[0].close();
   input[1].close();
+
+  if ( identical )
+  {
+    std::cout << "strict";
+    return 0;
+  }
 
 #if 0
   /* This simulates faults during the execution ... cheap but seems to be working */
@@ -112,7 +121,15 @@ int main(int argc, char* argv[])
   #endif
 
   rel_err = err*100.0/(double)(total);
-  std::cout << "Err: " << err << " out of " << total << " (" << rel_err << "%)" << std::endl;
+  //std::cout << "Err: " << err << " out of " << total << " (" << rel_err << "%)" << std::endl;
+  if ( rel_err < 0.1 )
+  {
+    std::cout << "correct";
+  }
+  else
+  {
+    std::cout << "altered";
+  }
 #if 0
   std::cout << "Faults: " << faults << std::endl; 
   std::cout << "Ratio: " << err/faults << std::endl;

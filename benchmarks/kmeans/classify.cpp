@@ -3,6 +3,7 @@
 #include <iostream>
 #include <fstream>
 #include <cstdlib>
+#include <cmath>
 
 int main(int argc, char* argv[])
 {
@@ -12,6 +13,7 @@ int main(int argc, char* argv[])
   int points, points2;
   int p1, p2, i, j, faults;
   int identical = 1;
+  double cluster_error = 0, cluster_tot=0.0;
 
   if ( argc != 3 )
   {
@@ -43,6 +45,23 @@ int main(int argc, char* argv[])
     populations[p2] = populations[p2] +1;
 
     identical &= (p1==p2);
+  }
+  
+  for ( ; ; )
+  {
+    float e1, e2;
+    double t;
+    
+    input[0].read((char*)&e1, sizeof(float));
+    input[1].read((char*)&e2, sizeof(float));
+    if ( !input[0] || !input[1] )
+    {
+      break;
+    }
+    t = fabs(e1-e2);
+    cluster_tot += fabs(e2);
+    cluster_error += t;
+    identical &= (*((int*)&e1) == *((int*)&e2));
   }
 
   input[0].close();
@@ -96,6 +115,7 @@ int main(int argc, char* argv[])
   double err = 0;
   double total = 0;
   double rel_err = 0;
+  double rel_cluster_err = 0;
 
 
   for ( i=0; i<points; ++i)
@@ -121,8 +141,10 @@ int main(int argc, char* argv[])
   #endif
 
   rel_err = err/(double)(total);
+  rel_cluster_err = cluster_error/(double)cluster_tot;
   //std::cout << "Err: " << err << " out of " << total << " (" << rel_err << "%)" << std::endl;
-  if ( rel_err < 0.1 )
+  std::cerr << "INNFO: " << rel_err << " " << rel_cluster_err << std::endl;
+  if ( rel_err < 0.1 && rel_cluster_err < 0.1 )
   {
     std::cout << "correct";
   }

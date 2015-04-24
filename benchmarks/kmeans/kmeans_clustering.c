@@ -114,6 +114,10 @@ typedef struct CLUSTER_T
   int delta, prev_new_points;
 } cluster_t;
 
+int total_points = 0;
+int total_features = 0;
+int total_clusters = 0;
+
 
 typedef struct ARG_T
 {
@@ -122,6 +126,7 @@ typedef struct ARG_T
 
 
 float    **new_centers;				/* [nclusters][nfeatures] */
+float    **prev_clusters;					/* out: [nclusters][nfeatures] */
 float    **clusters;					/* out: [nclusters][nfeatures] */
 float    **feature;
 int       *membership;
@@ -276,6 +281,33 @@ void clusters_init(int nclusters, int npoints, int nfeatures)
       membership_prev[i] = i;
     }
   }
+}
+
+int check_groups(void* _args)
+{
+	int sum = 0;
+	int i, j;
+
+	for (i=0; i<total_clusters; ++i)
+	{
+		sum += cluster_points[i].old_points;
+	}
+	
+	if ( sum != total_points )
+	{
+		printf("GRC second_group\n");
+		for ( i=0; i<total_clusters; ++i )
+		{
+			cluster_points[i].new_points = 0;
+			for ( j = 0; j<total_features; ++j )
+			{
+				clusters[i][j] = prev_clusters[i][j];
+			}
+		}
+		for (i=0; i<total_points; i++)
+			membership[i] = -1;
+	}
+	return SANITY_SUCCESS;
 }
 
 #ifdef SANITY
@@ -457,6 +489,7 @@ void process_cluster(void *_args, unsigned int task_id, unsigned int significanc
 
   for ( i=0; i<nfeatures; ++i )
   {
+		prev_clusters[tid][i] = clusters[tid][i];
     clusters[tid][i] = new_centers[tid][i];
   }
 #else
@@ -582,7 +615,10 @@ float** kmeans_clustering(float **_feature,    /* in: [npoints][nfeatures] */
 
   char group_name[256];
 
-  ntasks   = granularity;
+  total_points = npoints;
+	total_clusters = nclusters;
+	total_features = nfeatures;
+	ntasks   = granularity;
   feature    = _feature;
   membership = _membership;
 
@@ -593,6 +629,7 @@ float** kmeans_clustering(float **_feature,    /* in: [npoints][nfeatures] */
   radius_prev   = (float*) calloc(nclusters, sizeof(float));
 #endif
 
+  prev_clusters  = (float**) malloc(nclusters * sizeof(float*));
   clusters  = (float**) malloc(nclusters * sizeof(float*));
   bytes = sizeof(float)*nclusters*nfeatures;
   page = sysconf(_SC_PAGESIZE);
@@ -601,9 +638,15 @@ float** kmeans_clustering(float **_feature,    /* in: [npoints][nfeatures] */
   {
     assert( 0 && "Could not allocate memory");
   }
-
+	if ( posix_memalign((void**)&prev_clusters[0], page, bytes) )
+  {
+    assert( 0 && "Could not allocate memory");
+  }
   for (i=1; i<nclusters; i++)
+	{
     clusters[i] = clusters[i-1] + nfeatures;
+		prev_clusters[i] = prev_clusters[i-1] + nfeatures;
+	}
 
   membership_prev = (int*) calloc(npoints, sizeof(int));
 
@@ -647,7 +690,7 @@ float** kmeans_clustering(float **_feature,    /* in: [npoints][nfeatures] */
     }
 
 #ifdef PROTECT
-    wait_group(group_name, NULL, NULL, SYNC_RATIO | SYNC_TIME, 16, 0, 1.0f, 0);
+    wait_group(group_name, NULL, NULL, SYNC_RATIO | SYNC_TIME, 10, 0, 1.0f, 0);
     mprotect(clusters[0], bytes, PROT_READ|PROT_WRITE);
 #else
     wait_group(group_name, NULL, NULL, SYNC_RATIO, 0, 0, 1.0f, 0);
@@ -668,13 +711,13 @@ float** kmeans_clustering(float **_feature,    /* in: [npoints][nfeatures] */
       task = new_task(process_cluster,  /* function */
           &args, sizeof(args),          /* args, arg_size */
           NULL, NULL, 0,                /* san_funct, args, arg_size */
-          SIGNIFICANT, 0);              /* significance, redo */
+          NON_SIGNIFICANT, 0);              /* significance, redo */
       push_task(task, group_name);
     }
     args.nfeatures = nfeatures;
     args.npoints = npoints;
     args.nclusters = nclusters;
-    wait_group(group_name, NULL, NULL, SYNC_RATIO, 0, 0, 1.0f, 0);
+    wait_group(group_name, check_groups, NULL, SYNC_RATIO, 0, 0, 1.0f, 0);
 
     clear_move_status(&args);
 //    printf("*** Changed %d\n", sum_delta);

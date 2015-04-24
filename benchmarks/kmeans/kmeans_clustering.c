@@ -299,6 +299,7 @@ int check_groups(void* _args)
 		for ( i=0; i<total_clusters; ++i )
 		{
 			cluster_points[i].new_points = 0;
+			cluster_points[i].old_points = 0;
 			for ( j = 0; j<total_features; ++j )
 			{
 				clusters[i][j] = prev_clusters[i][j];
@@ -306,6 +307,7 @@ int check_groups(void* _args)
 		}
 		for (i=0; i<total_points; i++)
 			membership[i] = -1;
+
 	}
 	return SANITY_SUCCESS;
 }
@@ -717,7 +719,11 @@ float** kmeans_clustering(float **_feature,    /* in: [npoints][nfeatures] */
     args.nfeatures = nfeatures;
     args.npoints = npoints;
     args.nclusters = nclusters;
-    wait_group(group_name, check_groups, NULL, SYNC_RATIO, 0, 0, 1.0f, 0);
+		#ifdef SANITY
+			wait_group(group_name, check_groups, NULL, SYNC_RATIO, 0, 0, 1.0f, 0);
+		#else
+			wait_group(group_name, NULL, NULL, SYNC_RATIO, 0, 0, 1.0f, 0);
+		#endif
 
     clear_move_status(&args);
 //    printf("*** Changed %d\n", sum_delta);

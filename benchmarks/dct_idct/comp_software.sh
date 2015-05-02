@@ -1,3 +1,3 @@
 #!/bin/bash
 make clean
-make CFLAGS="-DGEMFI -DSANITY -DPROTECT" CC=$1
+make CFLAGS="-DGEMFI -DSANITY -DPROTECT -DTIMER" CC=$1

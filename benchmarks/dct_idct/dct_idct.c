@@ -20,6 +20,7 @@ typedef struct DCT_TASK_ARGS_T dct_task_args_t;
 typedef struct IDCT_TASK_ARGS_T idct_task_args_t;
 
 #define MAX_DCT_COEFF 7000
+#define MAX_DCT_COEFF_SIG 65392 
 
 struct DCT_TASK_ARGS_T
 {
@@ -146,7 +147,7 @@ int _dct_trc(long _r, long _c, long _i, long _j, int faulty)
         {
           if (dct[(r * 8 + i)*8*WIDTH + c * 8 + j]*quant_table[i*8+j] > MAX_DCT_COEFF )
           {
-            printf("[RTS] TRC %d %d %d %d %d\n", _r, _c, _i, _j, faulty);
+            printf("[RTS] TRC (NoSigTask) %d %d %d %d %d, faulty Value: %f\n", _r, _c, _i, _j, faulty, dct[(r * 8 + i)*8*WIDTH + c * 8 + j]*quant_table[i*8+j]);
             dct[(r * 8 + i)*8*WIDTH + c * 8 + j] = 0;
           }
         }
@@ -250,6 +251,82 @@ void spawn_dct_task(long r, long c, long i, long j, uint8_t significance)
    70  60  50  40
  */
 
+#ifdef NON_SIGNIFICANT_TASKS
+int _dct_trc_sig(long _r, long _c, long _i, long _j, int faulty)
+{
+  long i, j, r, c;
+  long c_e;
+
+  r = _r;
+  c = _c;
+  if ( WIDTH-_c > STEP_C )
+    c_e = _c+STEP_C;
+  else
+    c_e = WIDTH; 
+
+  if ( faulty )
+  {
+    printf("[RTS] TRC %d %d %d %d %d\n", _r, _c, _i, _j, faulty);
+    for ( c = _c; c<c_e; ++c )
+    {
+      for ( i=_i; i<_i+4; ++i )
+        for ( j=_j; j<_j+2; ++j)
+        {
+          dct[(r * 8 + i)*8*WIDTH + c * 8 + j] = 0;
+        }
+    }
+  }
+#ifndef RAZOR
+  else
+  {
+    for ( c = _c; c<c_e; ++c )
+    {
+      for ( i=_i; i<_i+4; ++i )
+        for ( j=_j; j<_j+2; ++j)
+        {
+          if (dct[(r * 8 + i)*8*WIDTH + c * 8 + j]*quant_table[i*8+j] > MAX_DCT_COEFF_SIG )
+          {
+            printf("[RTS] TRC (SigTask) %d %d %d %d %d, faulty Value: %f\n", _r, _c, _i, _j, faulty, dct[(r * 8 + i)*8*WIDTH + c * 8 + j]*quant_table[i*8+j]);
+            dct[(r * 8 + i)*8*WIDTH + c * 8 + j] = 0;
+          }
+        }
+    }
+  }
+#endif
+  return SANITY_SUCCESS;
+}
+
+int dct_trc_sig(void *_args, void* not_used_at_all, int faulty)
+{
+  dct_task_args_t *args = (dct_task_args_t*) _args;
+  return _dct_trc_sig(args->r, args->c, args->i, args->j, faulty);
+}
+
+
+
+void spawn_dct_task_sig (long r, long c, long i, long j, uint8_t significance)
+{
+  task_t *task;
+  dct_task_args_t args;
+
+  args.r = r;
+  args.c = c;
+  args.i = i;
+  args.j = j;
+
+#ifdef SANITY
+  task = new_task(dct_task, &args, sizeof(args), dct_trc_sig, NULL, 0, significance, 0);
+#else
+  task = new_task(dct_task, &args, sizeof(args), NULL, NULL, 0, significance, 0);
+#endif
+  push_task(task, "dct");
+}
+
+
+#endif
+
+
+
 void DCT(unsigned char pic[], double dct[], double COS[], double C[]) {
 
   long r, c, k;
@@ -258,7 +335,11 @@ void DCT(unsigned char pic[], double dct[], double COS[], double C[]) {
     for (k=0; k < WIDTH/STEP_C; k++)
     {
       c = k*STEP_C;
+#ifdef NON_SIGNIFICANT_TASKS
+      spawn_dct_task_sig(r, c, 0, 0, 0);
+#else
       spawn_dct_task(r, c, 0, 0, SIGNIFICANT );
+#endif
       spawn_dct_task(r, c, 0, 2, 60  < RATIO*100);
       spawn_dct_task(r, c, 0, 4, 50  < RATIO*100);
       spawn_dct_task(r, c, 0, 6, 40  < RATIO*100);
@@ -275,7 +356,7 @@ void DCT(unsigned char pic[], double dct[], double COS[], double C[]) {
               spawn_dct_task(r, c, 6, 4, 50);
               spawn_dct_task(r, c, 6, 6, 40);*/
     }
-#ifdef PROTECT
+#ifdef TIMER
   wait_group("dct", NULL, NULL, SYNC_RATIO|SYNC_TIME, 400, 0, 1.0f, 0);
 #else
   wait_group("dct", NULL, NULL, SYNC_RATIO, 0, 0, 1.0f, 0);

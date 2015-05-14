@@ -20,7 +20,7 @@ typedef struct DCT_TASK_ARGS_T dct_task_args_t;
 typedef struct IDCT_TASK_ARGS_T idct_task_args_t;
 
 #define MAX_DCT_COEFF 7000
-#define MAX_DCT_COEFF_SIG 65392 
+#define MAX_DCT_COEFF_SIG 65392
 
 struct DCT_TASK_ARGS_T
 {
@@ -127,7 +127,7 @@ int _dct_trc(long _r, long _c, long _i, long _j, int faulty)
 
   if ( faulty )
   {
-    printf("[RTS] TRC %d %d %d %d %d\n", _r, _c, _i, _j, faulty);
+    printf("[RTS] TRC %ld %ld %ld %ld %d\n", _r, _c, _i, _j, faulty);
     for ( c = _c; c<c_e; ++c )
     {
       for ( i=_i; i<_i+4; ++i )
@@ -147,7 +147,7 @@ int _dct_trc(long _r, long _c, long _i, long _j, int faulty)
         {
           if (dct[(r * 8 + i)*8*WIDTH + c * 8 + j]*quant_table[i*8+j] > MAX_DCT_COEFF )
           {
-            printf("[RTS] TRC (NoSigTask) %d %d %d %d %d, faulty Value: %f\n", _r, _c, _i, _j, faulty, dct[(r * 8 + i)*8*WIDTH + c * 8 + j]*quant_table[i*8+j]);
+            printf("[RTS] TRC (NoSigTask) %ld %ld %ld %ld %d, faulty Value: %f\n", _r, _c, _i, _j, faulty, dct[(r * 8 + i)*8*WIDTH + c * 8 + j]*quant_table[i*8+j]);
             dct[(r * 8 + i)*8*WIDTH + c * 8 + j] = 0;
           }
         }

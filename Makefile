@@ -4,7 +4,8 @@
 #make "CFLAGS=-DGEMFI -DDUAL_TASKS" injects faults only to non-reliable tasks
 CC=colorgcc
 AR=ar
-override CFLAGS+= --static -c -Wall -g -I include/ -O3 -DDEBUG 
+# -DDEBUG 
+override CFLAGS+= --static -c -Wall -g -I include/ -O3
 LDFLAGS= -lpthread -lOpenCL -ldl -lrt -fPIC -lm5
 SOURCES=list.c group.c task.c coordinator.c  accelerator.c
 INCLUDE=-I./fi

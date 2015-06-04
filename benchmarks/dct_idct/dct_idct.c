@@ -492,7 +492,6 @@ int main(int argc, char* argv[]) {
 
 
 #if 1
-  assert(N==WIDTH*8);
   in = fopen("lena512.raw", "rb");
   assert(in);
   for (r = 0; r < N; r++)

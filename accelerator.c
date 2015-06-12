@@ -38,6 +38,13 @@ int check_schedule(void *task, void *dont_care){
 task_t* get_job(info *me){
   task_t *element = NULL;
   pool_t *ready;
+
+// Get next task from the corresponding queue. If the worker is 
+// reliable just get jobs from the significant user
+// otherwise from the non-significant queue. 
+// If the flag is disabled all workers get jobs from
+// the same queue
+
 #ifdef DOUBLE_QUEUES
   if( me->reliable == 0 )
   {
@@ -56,7 +63,10 @@ task_t* get_job(info *me){
       element = delete_element(ready, check_schedule, NULL);
     }
     if(element){
+//Move task from pending queue to executing queue
+//NOT SURE WHY WE DID THAT
       move_q(element);
+//set pointers of the worker to the task's elements
       me->execution = element->execution;
       me->execution_args = element->execution_args;
       me->sanity = element ->sanity_func;
@@ -77,6 +87,8 @@ task_t* get_job(info *me){
   }while(element == NULL);
   return element;
 }
+
+
 
 #if NOPROTECT 
 /* Just execute tasks as non-significant */
@@ -102,20 +114,27 @@ void* main_acc(void *args)
 
   while(1)
   { 
+    //Get next task
     exec_task=get_job(whoami);
     assert(exec_task);
     if ( MAY_FAIL )
     {
+      //Get a safe context prior executing a task
       getcontext(&(whoami->context));
     }
+    //Check whether i should execute task or execute sanity function
     if(whoami->exec_status == TASK_NONE)
     {
       whoami->exec_status = TASK_EXECUTING;
+      //Set status of executing worker. This is used upon
+      //killing a task, only when this flag is se t to TASK_EXECUTING
+      //the task is killed
       whoami->execution(whoami->execution_args, exec_task->task_id, 
           TASK_SIGNIFICANCE);
       whoami->exec_status = TASK_SANITY;
       if ( MAY_FAIL)
       {
+        //this operates as a goto statement and points at line:123
         setcontext(&(whoami->context));
       }
     }

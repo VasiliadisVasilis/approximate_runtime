@@ -117,6 +117,9 @@ float calculate_ratio(group_t *elem){
   else return 1.1;
 }
 
+//This function sends a sigusr1 to the executing worker.
+//If the worker executes a task it forcefull terminates the execution
+//by reseting the tasks context.
 int force_termination(void *args){
   int ret=0;
   task_t *task = (task_t*) args;
@@ -154,6 +157,7 @@ int wait_group_ratio(group_t* group, float ratio)
   return WAIT_PENDING;
 }
 
+//Wait for group of tasks to terminate with a timing limit.
 int wait_group_time(group_t *group, unsigned int time_ms)
 {
   task_t *del;
@@ -172,6 +176,10 @@ int wait_group_time(group_t *group, unsigned int time_ms)
   {
     debug("Wait on watchdog...\n");
     long start_time=my_time();
+    
+    //wait for specified time or wake up when a worker informs the main application that all
+    //tasks have finished their execution.
+    
     ret =pthread_cond_timedwait(&group->condition, &group->lock, &watchdog);
     long end_time=my_time();
 
@@ -179,6 +187,8 @@ int wait_group_time(group_t *group, unsigned int time_ms)
     if (ret == ETIMEDOUT) 
     {
       debug("Wait on watchdog...Done\n");
+      //If significant tasks are still being executed I will kill or
+      //non significant ones and i will wait until the significant ones finish.
       if(group->finished_sig_num != group->total_sig_tasks){
         group->ratio = 0.0;
         pthread_mutex_lock(&ready_tasks->lock);
@@ -204,6 +214,8 @@ int wait_group_time(group_t *group, unsigned int time_ms)
       }
       else
       {
+        //In this case i dont have any significant task in the queues. So ill kill all of
+        // executing tasks.
         if(group->executing_num != 0)
         {
           if(!group->terminated){
@@ -241,6 +253,7 @@ int wait_group_time(group_t *group, unsigned int time_ms)
   return WAIT_DONE;
 }
 
+//Simple barrier
 int wait_group_all(group_t *group)
 {
   debug(" I am waiting for ALL tasks\n");
@@ -271,6 +284,8 @@ int wait_group_all(group_t *group)
   return WAIT_DONE;
 }
 
+
+//user called function
 int wait_group(char *group, int (*func) (void *),  void * args , unsigned int type,
     unsigned int time_ms, unsigned int time_us, float ratio, unsigned int redo)
 {

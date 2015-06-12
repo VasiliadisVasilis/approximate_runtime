@@ -49,6 +49,7 @@ task_t* new_task(void  (*exec)(void *, unsigned int, unsigned int), void *args,
   task_t *new = (task_t *) calloc(1,sizeof(task_t));
   assert(new);
 
+  //TASK_ID is unique for each task
   new->task_id = id++;
 
   new->execution_id = -1;
@@ -87,7 +88,7 @@ task_t* new_task(void  (*exec)(void *, unsigned int, unsigned int), void *args,
   new->outputs = NULL;
 
   new->my_group = NULL;
-
+//NEVER DEBUGGED THE DEPENDENCIES PART
 #ifdef DEPENDENCIES 
 #warning compilin with dependencies turned on
   new->depend_on = create_pool(); // this can be commented out
@@ -358,6 +359,9 @@ int actual_push(void *_task)
   return 1;
 }
 
+
+// pushing task into the correspoing group queues. 
+// Pushing task also at the global queues.
 int push_task(task_t *task, char *name){
   group_t *group;
   pool_t *temp;
@@ -431,7 +435,8 @@ int push_task(task_t *task, char *name){
   return 1;
 }
 
-
+//Whe tasks finishes i cannot delete, the entire group might be 
+//re-executed therefore i push tasks to the groups' finished_q queue
 int finished_task(task_t* task)
 {
   task_t *elem;

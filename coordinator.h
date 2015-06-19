@@ -47,7 +47,8 @@ typedef struct info_t{
   void *execution_args;
   // task function.
   /* vasiliad: see task.h*/
-  void (*execution) (void *, unsigned int, unsigned int);
+  void (*execution_nonsig) (void *);
+  void (*execution) (void *);
   
   //arguments of the tasks result check function
   void *sanity_args;

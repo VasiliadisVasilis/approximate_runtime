@@ -21,6 +21,7 @@ list_t* add_pool_tail(pool_t *pool, void *element);
 void* delete_element(pool_t *pool, int (*cmp) (void *,void *),void *args);
 void empty_pool(pool_t *pool);
 void delete_list(pool_t *pool);
+void *pop_first(pool_t* pool);
 list_t* search(pool_t *pool, int (*cmp) (void *,void *),void *args);
 
 

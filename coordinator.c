@@ -151,8 +151,6 @@ void init_system(unsigned int reliable_workers , unsigned int nonrel_workers)
     exit(0);
   }
   
-  INIT_FI(__executable_start,__etext)
-
   pending_tasks = create_pool();
 
   //Store here significant tasks with 

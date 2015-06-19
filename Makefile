@@ -2,9 +2,9 @@
 #make "CFLAGS=-DDUAL_TASKS -DENABLE_CONTEXT -DENABLE_SIGNALS -DDOUBLE_QUEUES" for a scorpio like runtime
 #make "CFLAGS=-DGEMFI" to enable fault injection to tasks
 #make "CFLAGS=-DGEMFI -DDUAL_TASKS" injects faults only to non-reliable tasks
-CC=colorgcc
+CC=gcc
 AR=ar
-# -DDEBUG 
+# -DDEBUG -O3
 override CFLAGS+= --static -c -Wall -g -I include/ -O3
 LDFLAGS= -lpthread -lOpenCL -ldl -lrt -fPIC -lm5
 SOURCES=list.c group.c task.c coordinator.c  accelerator.c
@@ -19,7 +19,7 @@ $(EXECUTABLE): $(OBJECTS)
 	$(AR)  rcs $(EXECUTABLE) $(OBJECTS)
 
 .c.o:
-	$(CC) $(INCLUDE) $(LIB) $(LDFLAGS) $(CFLAGS) $(FLAGS)  $< -o $@
+	$(CC) $(INCLUDE) $(LIB) $(CFLAGS) $(FLAGS)  $< -o $@ $(LDFLAGS) 
 	
 clean:
 	rm -rf *.o $(EXECUTABLE)

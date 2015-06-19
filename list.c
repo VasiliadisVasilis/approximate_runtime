@@ -3,64 +3,69 @@
 #include <stdlib.h>
 #include <assert.h>
 #include "list.h"
-#include "task.h"
 
 
 pool_t* create_pool(){
-  pool_t *new =(pool_t *) calloc(1, sizeof(pool_t));
-  assert(new);
-  pthread_mutex_init(&new->lock, NULL);
-  new->head=NULL;
-  new->tail=NULL;
-  return new;
+  pool_t *new_item =(pool_t *) calloc(1, sizeof(pool_t));
+  assert(new_item);
+  pthread_mutex_init(&new_item->lock, NULL);
+  new_item->head=NULL;
+  new_item->tail=NULL;
+  return new_item;
 }
 
 list_t * create_list(){
-  list_t *new =(list_t *) calloc(1, sizeof(list_t));
-  assert(new);
-  new->args=NULL;
-  new->next=NULL;
-  return new;
+  list_t *new_item =(list_t *) calloc(1, sizeof(list_t));
+  assert(new_item);
+  new_item->args=NULL;
+  new_item->next=NULL;
+  return new_item;
 }
 
 list_t* add_pool_head(pool_t *pool, void *element){
 
-  list_t *new = (list_t *) calloc(1, sizeof(list_t));
-  assert(new);
+  list_t *new_item = (list_t *) calloc(1, sizeof(list_t));
+  assert(new_item);
   if(!pool->head){
-    pool->head = new;
-    pool->tail=new;
-    new->next = NULL;
-    new->args = element;
+    pool->head = new_item;
+    pool->tail=new_item;
+    new_item->next = NULL;
+    new_item->args = element;
   }
   else{
-    new->args = element;
-    new->next = pool->head;
-    pool->head=new;
+    new_item->args = element;
+    new_item->next = pool->head;
+    pool->head=new_item;
   }
 
-  return new;
+  return new_item;
 }
 
 list_t* add_pool_tail(pool_t *pool, void *element){
 
-  list_t *new = (list_t *)calloc(1, sizeof(list_t));
-  assert(new);
+  list_t *new_item = (list_t *)calloc(1, sizeof(list_t));
+  assert(new_item);
   if(!pool->tail){
-    pool->head = new;
-    pool->tail=new;
-    new->next = NULL;
-    new->args = element;
+    pool->head = new_item;
+    pool->tail=new_item;
+    new_item->next = NULL;
+    new_item->args = element;
 
   }else{
-    new->args = element;
-    pool->tail->next = new;
-    pool->tail = new;
+    new_item->args = element;
+    pool->tail->next = new_item;
+    pool->tail = new_item;
   }
 
-  return new;
+  return new_item;
 }
 
+
+void *pop_first(pool_t* pool)
+{
+	void * ret = remove_element(pool, pool->head, NULL);
+	return ret;
+}
 
 void* remove_element(pool_t *pool, list_t *node, list_t *prev){
 

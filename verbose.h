@@ -1,3 +1,4 @@
+#if 0
 #ifdef ENABLE_SIGNALS
   #warning [NoticeMe] Signal handler mechanism ENABLED
 #else
@@ -22,4 +23,5 @@
   #warning [NoticeMe] Razor is ENABLED
 #else
   #warning [NoticeMe] Razor is disabled
+#endif
 #endif

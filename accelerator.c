@@ -3,6 +3,7 @@
 #include <assert.h>
 #include <stdint.h>
 #include <pthread.h>
+#define _GNU_SOURCE
 #include "coordinator.h"
 #include "task.h"
 
@@ -26,55 +27,28 @@ extern pool_t *ready_tasks;
 extern pool_t *executing_tasks;
 extern pool_t *finished_tasks;
 
-int check_schedule(void *task, void *dont_care){
-  task_t *curr = (task_t*) task;
-  // check if my group is being executed. 
-  if(curr->my_group->schedule){
-    return 1;
-  }
-  return 0;
-}
 
 task_t* get_job(info *me){
   task_t *element = NULL;
   pool_t *ready;
 
-// Get next task from the corresponding queue. If the worker is 
-// reliable just get jobs from the significant user
-// otherwise from the non-significant queue. 
-// If the flag is disabled all workers get jobs from
-// the same queue
-
-#ifdef DOUBLE_QUEUES
-  if( me->reliable == 0 )
-  {
-    ready = non_sig_ready_tasks;
-  }
-  else
-  {
-    ready = sig_ready_tasks;
-  }
-#else
   ready = ready_tasks;
-#endif
   do{
     pthread_mutex_lock(&ready->lock);
     if(ready->head){
-      element = delete_element(ready, check_schedule, NULL);
+      element = pop_first(ready);
     }
     if(element){
-//Move task from pending queue to executing queue
-//NOT SURE WHY WE DID THAT
       move_q(element);
-//set pointers of the worker to the task's elements
-      me->execution = element->execution;
+			if ( element->significance == SIGNIFICANT )
+			{
+      	me->execution = element->execution;
+			}
+			else
+			{
+				me->execution = element->execution_nonsig;
+			}
       me->execution_args = element->execution_args;
-      me->sanity = element ->sanity_func;
-      me->sanity_args= element->sanity_args;
-      me->checked_results = 0;
-      me->redo = element->redo;
-      /* vasiliad: gemfi uses this to pause faults when a segfault is detected */
-      me->task_id = element->task_id;
       me->significance = element->significance;
       element->execution_thread = me->my_id;
       element->execution_id = me->id;
@@ -90,7 +64,6 @@ task_t* get_job(info *me){
 
 
 
-#if NOPROTECT 
 /* Just execute tasks as non-significant */
 void* main_acc(void *args){
   info *whoami = (info*) args;
@@ -99,136 +72,8 @@ void* main_acc(void *args){
   while(1)
   { 
     exec_task=get_job(whoami);
-    whoami->execution(whoami->execution_args, exec_task->task_id, 
-       NON_SIGNIFICANT);
+    whoami->execution(whoami->execution_args);
     finished_task(exec_task);
   }
 }
-#elif SOFTWARE
-/* Execute RCF for EVERY task that might get injected a fault */
-void* main_acc(void *args)
-{
-  info *whoami = (info*) args;
-  task_t *exec_task;
-  uint64_t am_i_faulty;
 
-  while(1)
-  { 
-    //Get next task
-    exec_task=get_job(whoami);
-    assert(exec_task);
-    if ( MAY_FAIL )
-    {
-      //Get a safe context prior executing a task
-      getcontext(&(whoami->context));
-    }
-    //Check whether i should execute task or execute sanity function
-    if(whoami->exec_status == TASK_NONE)
-    {
-      whoami->exec_status = TASK_EXECUTING;
-      //Set status of executing worker. This is used upon
-      //killing a task, only when this flag is se t to TASK_EXECUTING
-      //the task is killed
-      whoami->execution(whoami->execution_args, exec_task->task_id, 
-          TASK_SIGNIFICANCE);
-      whoami->exec_status = TASK_SANITY;
-      if ( MAY_FAIL)
-      {
-        //this operates as a goto statement and points at line:123
-        setcontext(&(whoami->context));
-      }
-    }
-    else if ( MAY_FAIL 
-        && (  whoami->exec_status == TASK_SANITY 
-            || whoami->exec_status == TASK_CRASHED 
-            || whoami->exec_status == TASK_TERMINATED ) )
-    {
-      am_i_faulty = 0;
-      am_i_faulty |= ( whoami->exec_status == TASK_TERMINATED );
-      am_i_faulty |= ( whoami->exec_status == TASK_CRASHED );
-      if ( whoami->exec_status == TASK_CRASHED )
-      {
-        printf("[RTS] TaskCrashed %d\n", whoami->task_id);
-      }
-      if ( whoami->sanity )
-      {
-        whoami->return_val = SANITY_SUCCESS;
-        whoami->return_val = whoami->sanity(whoami->execution_args, 
-            whoami->sanity_args, am_i_faulty);  
-        if ( whoami->return_val != SANITY_SUCCESS  && whoami->redo > 0 )
-        {
-          whoami->redo--;
-          whoami->exec_status = TASK_NONE;
-          setcontext(&(whoami->context));
-        }
-      }
-    }
-
-    finished_task(exec_task);
-    whoami->exec_status = TASK_NONE;
-  }
-}
-#elif ALLFEATURES 
-/* Execute RCF only for tasks which have experienced a fault/terminated */
-void* main_acc(void *args)
-{
-  info *whoami = (info*) args;
-  task_t *exec_task;
-  uint64_t am_i_faulty;
-
-  while(1)
-  { 
-    exec_task=get_job(whoami);
-    assert(exec_task);
-    if ( MAY_FAIL )
-    {
-      getcontext(&(whoami->context));
-    }
-    if(whoami->exec_status == TASK_NONE)
-    {
-      whoami->exec_status = TASK_EXECUTING;
-      whoami->execution(whoami->execution_args, exec_task->task_id, 
-          TASK_SIGNIFICANCE);
-      whoami->exec_status = TASK_SANITY;
-      if ( MAY_FAIL)
-      {
-        setcontext(&(whoami->context));
-      }
-    }
-    else if ( MAY_FAIL 
-        && (   whoami->exec_status == TASK_SANITY 
-            || whoami->exec_status == TASK_CRASHED 
-            || whoami->exec_status == TASK_TERMINATED ) )
-    {
-      am_i_faulty = 0;
-      am_i_faulty |= gemfi_faulty();
-      if ( am_i_faulty )
-      {
-        printf("[RTS] Fault detected %d\n", whoami->task_id);
-      }
-      am_i_faulty |= ( whoami->exec_status == TASK_TERMINATED );
-      am_i_faulty |= ( whoami->exec_status == TASK_CRASHED );
-      if ( whoami->exec_status == TASK_CRASHED )
-      {
-        printf("[RTS] TaskCrashed %d\n", whoami->task_id);
-      }
-      if ( am_i_faulty && whoami->sanity )
-      {
-        whoami->return_val = SANITY_SUCCESS;
-        whoami->return_val = whoami->sanity(whoami->execution_args, 
-            whoami->sanity_args, am_i_faulty);  
-        if ( whoami->return_val != SANITY_SUCCESS  && whoami->redo > 0 )
-        {
-          whoami->redo--;
-          whoami->exec_status = TASK_NONE;
-          setcontext(&(whoami->context));
-        }
-      }
-    }
-    finished_task(exec_task);
-    whoami->exec_status = TASK_NONE;
-  }
-}
-#else
-#error You should have never reached this, check config.h for ALLFEATURES/SOFTWARE/NOPROTECT
-#endif

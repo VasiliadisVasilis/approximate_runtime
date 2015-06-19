@@ -28,7 +28,7 @@ int THREADS;
 double *construct_jacobi_matrix(double *ret, int diagonally_dominant, int size);
 double *construct_b(int size);
 int jacobi(double *A, double *x, double *x1,  double *b, double* y,
-    long int size, double itol, unsigned int *iters);
+    long int size, double itol, unsigned int *iters, float ratio);
 double *construct_right(double* ret, int size, double *mat, double* sol);
 
 #ifdef SANITY
@@ -121,40 +121,8 @@ double *construct_jacobi_matrix(double *ret, int diagonally_dominant, int size) 
 }
 
 
-#ifdef SANITY
-int jacobi_trc(void *_args, void* not_used_at_all, int faulty)
-{
-  arg_t *a = (arg_t*) _args;
-  int i, size, c;
-  double *x, *x1;
-  int i_b, i_e;
 
-  if ( faulty == 0 )
-    return SANITY_SUCCESS;
-
-  i = a->i;
-  size = a->size;
-  x = a->x;
-  x1 = a->x1;
-
-  i_b = i;
-  if ( size-i > TASK_WORK )
-    i_e = i+TASK_WORK;
-  else
-    i_e = size;
-  
-  printf("[RTS] TRC %d\n", i);
-
-  for (c=i_b; c<i_e; ++c)
-  {
-    x1[c] = x[c];
-  }
-
-  return SANITY_SUCCESS;
-}
-#endif
-
-void jacobi_task(void *_args, unsigned int task_id, unsigned int significance)
+void jacobi_task(void *_args)
 {
   arg_t *a = (arg_t*) _args;
   int i, size;
@@ -216,9 +184,15 @@ void jacobi_task(void *_args, unsigned int task_id, unsigned int significance)
 #endif
 }
 
+void jacobi_task_approx(void *args)
+{
+	printf("APPROX BITCH!\n");
+	jacobi_task(args);
+}
+
 // This is the actual benchmark kernel
 int jacobi(double *A, double *x, double *x1,  double *b, double* y,
-    long int size, double itol, unsigned int *iters)
+    long int size, double itol, unsigned int *iters, float ratio)
 {
   int iter, i, significance;
   double dif, t;
@@ -234,7 +208,7 @@ int jacobi(double *A, double *x, double *x1,  double *b, double* y,
 
   for ( iter = 0; (iter<*iters) && (  dif > itol ) ; ++iter ) {
     sprintf(group_name, "jcb%d", iter);
-    significance = dif < itol*10 ? SIGNIFICANT : NON_SIGNIFICANT;
+    significance = dif < itol*10 ? SIGNIFICANT -1 : NON_SIGNIFICANT +1;
     for ( i=0; i<size; i+=TASK_WORK ) {
       arg.i = i;
       arg.size = size;
@@ -242,19 +216,11 @@ int jacobi(double *A, double *x, double *x1,  double *b, double* y,
       arg.x = x;
       arg.x1 = x1;
       arg.b = b;
-#ifdef SANITY
-      task = new_task(jacobi_task, &arg, sizeof(arg), jacobi_trc, NULL, 0, significance, 0);
-#else
-      task = new_task(jacobi_task, &arg, sizeof(arg), NULL, NULL, 0, significance, 0);
-#endif
+      task = new_task(jacobi_task, &arg, sizeof(arg), jacobi_task_approx, significance);
       push_task(task, group_name);
     }
 
-#ifdef PROTECT
-    wait_group(group_name, NULL, NULL, SYNC_RATIO|SYNC_TIME, 16 , 0, 1.0f, 0);
-#else
-    wait_group(group_name, NULL, NULL, SYNC_RATIO, 0, 0, 1.0f, 0);
-#endif
+    wait_group(group_name, NULL, NULL, SYNC_RATIO, 0, 0, ratio, 0);
 
     dif = 0.0;
     for ( i=0; i<size; i++ ) {
@@ -277,14 +243,15 @@ int main(int argc, char* argv[]) {
   char *endptr;
   int diagonally_dominant;
   unsigned int iters;
-  int ret, i;
+  int ret;
   int non_sig;
   long start, dur, _seed;
   long bytes, page;
+	float ratio;
 
 
-  if (argc != 6){
-    printf("[%d] usage ./jacobi long:N double:itol long:max_iters long:seed threads\n",
+  if (argc != 7){
+    printf("[%d] usage ./jacobi long:N double:itol long:max_iters long:seed threads ratio\n",
       argc);
     return(1);
   }
@@ -295,6 +262,7 @@ int main(int argc, char* argv[]) {
   iters = strtod(argv[3], &endptr);
   _seed =strtol(argv[4], NULL, 10);
   THREADS=atoi(argv[5]);
+	ratio = atof(argv[6]);
 
   assert(N%TASK_WORK == 0);
   x = (double*) calloc(N,sizeof(double));
@@ -304,7 +272,7 @@ int main(int argc, char* argv[]) {
   page = sysconf(_SC_PAGESIZE);
   bytes = ceil(bytes/(double)page) * page;
   mat = NULL;
-  posix_memalign((void**)&mat, page, bytes);
+  ret = posix_memalign((void**)&mat, page, bytes);
   assert(mat);
   y = mat + N*N;
   b = y + N;
@@ -330,7 +298,7 @@ int main(int argc, char* argv[]) {
 #ifdef GEMFI
  m5_dumpreset_stats(0,0); 
 #endif
-  ret = jacobi(mat, x, x1, b, y, N, itol, &iters);
+  ret = jacobi(mat, x, x1, b, y, N, itol, &iters, ratio);
 #ifdef GEMFI
  m5_dumpreset_stats(0,0); 
 #endif

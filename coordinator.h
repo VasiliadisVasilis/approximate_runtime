@@ -5,8 +5,8 @@
 #include <time.h>
 #include <ucontext.h>
 
-enum ReliabilityMode {Non_Reliable, Reliable};
-enum TaskStatus {Task_None, Task_Executing, Task_Sanity};
+enum ReliabilityMode {NON_RELIABLE, RELIABLE};
+enum TaskStatus {TASK_NONE, TASK_EXECUTING, TASK_SANITY, TASK_CRASHED, TASK_TERMINATED};
 
 // info_t is the worker descriptor.
 
@@ -22,15 +22,17 @@ typedef struct info_t{
   
   // unique runtime provided id for this worker
   unsigned int id;
+
+  // vasiliad: currently executed task ( used for gemfi identification purposes )
+  unsigned int task_id, significance;
   
   // variable used by approximate workers. 
   // It is mainly used as a safe-guard protecting the
-  // execution of the task function. If flag=0 then 
+  // execution of the task function. If exec_status=0 then 
   // the task function is not used.
-  volatile int flag;
+  volatile int exec_status;
   
   //synchronization variables.
-  pthread_mutex_t my_mutex;
   pthread_cond_t cond;
   
   // work is set to zero when the worker has no
@@ -44,12 +46,14 @@ typedef struct info_t{
   // arguments of the task function
   void *execution_args;
   // task function.
+  /* vasiliad: see task.h*/
+  void (*execution_nonsig) (void *);
   void (*execution) (void *);
   
   //arguments of the tasks result check function
   void *sanity_args;
   // result check function
-  int (*sanity) (void *, void*);
+  int (*sanity) (void *, void*, int);
   
   // return value of result check function.
   unsigned int return_val;
@@ -61,8 +65,10 @@ typedef struct info_t{
   // Not used variable
   unsigned int reliable;
   
+	unsigned int running;
 }info;
 
 void init_system(unsigned int reliable_workers , unsigned int nonrel_workers);
+void shutdown_system();
 
 #endif 

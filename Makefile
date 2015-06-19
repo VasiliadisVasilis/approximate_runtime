@@ -1,10 +1,15 @@
-#make "CFLAGS=-DENABLE_CONTEXT -DENABLE_SIGNALS -DDOUBLE_QUEUES" for a scorpio like runtime
-
+#make "CFLAGS=-DDUAL_TASKS -DENABLE_CONTEXT -DENABLE_SIGNALS -DGEMFI" for a DSN2015
+#make "CFLAGS=-DDUAL_TASKS -DENABLE_CONTEXT -DENABLE_SIGNALS -DDOUBLE_QUEUES" for a scorpio like runtime
+#make "CFLAGS=-DGEMFI" to enable fault injection to tasks
+#make "CFLAGS=-DGEMFI -DDUAL_TASKS" injects faults only to non-reliable tasks
 CC=gcc
 AR=ar
-override CFLAGS+= -c -Wall -g -I include/ -O3 #-DDEBUG 
-LDFLAGS= -lpthread -lOpenCL -ldl -lrt -fPIC 
-SOURCES=list.c group.c task.c coordinator.c  accelerator.c opencl_nvidia_wrapper.c
+# -DDEBUG -O3
+override CFLAGS+= --static -c -Wall -g -I include/ -O3
+LDFLAGS= -lpthread -lOpenCL -ldl -lrt -fPIC -lm5
+SOURCES=list.c group.c task.c coordinator.c  accelerator.c
+INCLUDE=-I./fi
+LIB=-L./fi
 OBJECTS=$(SOURCES:.c=.o)
 EXECUTABLE=librtsrel.a
 
@@ -14,7 +19,7 @@ $(EXECUTABLE): $(OBJECTS)
 	$(AR)  rcs $(EXECUTABLE) $(OBJECTS)
 
 .c.o:
-	$(CC) $(LDFLAGS) $(CFLAGS) $(FLAGS)  $< -o $@
+	$(CC) $(INCLUDE) $(LIB) $(CFLAGS) $(FLAGS)  $< -o $@ $(LDFLAGS) 
 	
 clean:
 	rm -rf *.o $(EXECUTABLE)

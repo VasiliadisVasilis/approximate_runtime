@@ -1,11 +1,21 @@
 #include <pthread.h>
 #include <stdio.h>
 #include <assert.h>
+#include <stdint.h>
+#include <pthread.h>
+#define _GNU_SOURCE
 #include "coordinator.h"
 #include "task.h"
+
 /* Include this *after* task.h if you wish to access task_t fields */
 #include "include/runtime.h"
 #include "debug.h"
+#include "config.h"
+
+
+#ifdef ENERGY_STATS
+#include <likwid.h>
+#endif
 
 extern task_t **assigned_jobs;
 
@@ -22,100 +32,62 @@ extern pool_t *ready_tasks;
 extern pool_t *executing_tasks;
 extern pool_t *finished_tasks;
 
-int check_schedule(void *task, void *dont_care){
-  task_t *curr = (task_t*) task;
-  // check if my group is being executed. 
-  if(curr->my_group->schedule){
-    return 1;
-  }
-  return 0;
-}
 
 task_t* get_job(info *me){
   task_t *element = NULL;
   pool_t *ready;
-#ifdef DOUBLE_QUEUES
-  if( me->reliable == 0 )
-  {
-    ready = non_sig_ready_tasks;
-  }
-  else
-  {
-    ready = sig_ready_tasks;
-  }
-#else
+
   ready = ready_tasks;
-#endif
   do{
     pthread_mutex_lock(&ready->lock);
     if(ready->head){
-      element = delete_element(ready, check_schedule, NULL);
+      element = pop_first(ready);
     }
     if(element){
       move_q(element);
-      me->execution = element->execution;
+			if ( element->significance == SIGNIFICANT )
+			{
+      	me->execution = element->execution;
+			}
+			else
+			{
+				me->execution = element->execution_nonsig;
+			}
       me->execution_args = element->execution_args;
-      me->sanity = element ->sanity_func;
-      me->sanity_args= element->sanity_args;
-      me->checked_results = 0;
-      me->redo = element->redo;
+      me->significance = element->significance;
       element->execution_thread = me->my_id;
       element->execution_id = me->id;
+      pthread_mutex_unlock(&ready->lock);
+      break;
     }
     pthread_mutex_unlock(&ready->lock);
+    sched_yield();
+
   }while(element == NULL);
   return element;
 }
 
-
+/* Just execute tasks as non-significant */
 void* main_acc(void *args){
   info *whoami = (info*) args;
   task_t *exec_task;
-  
-  pthread_mutex_lock(&whoami->my_mutex);
-  while(1)
-  {
+	
+	#ifdef ENERGY_STATS
+	likwid_markerThreadInit();
+	#endif
+  while(whoami->running)
+  { 
     exec_task=get_job(whoami);
-    assert(exec_task);
-    // if a fault is detected I am going to 
-    // return to the following line
-#ifdef ENABLE_CONTEXT
-    if ( whoami->reliable == Non_Reliable)
-    {
-      getcontext(&(whoami->context));
-    }
-    if(whoami->flag == Task_None)
-    {
-      whoami->flag = Task_Executing;
-#endif
-      whoami->execution(whoami->execution_args);
-#ifdef ENABLE_CONTEXT
-      whoami->flag = Task_Sanity;
-      if ( whoami->reliable == Non_Reliable )
-      {
-        setcontext(&(whoami->context));
-      }
-    }
-    /*vasiliad: What if a SIGSEV or w/e occurs during a trc/grc ??? */
-    else if ( whoami->flag == Task_Sanity )
-    {
-#endif
-      whoami->return_val = SANITY_SUCCESS;
-      if( whoami->sanity )
-      {
-        whoami->return_val = whoami->sanity(whoami->execution_args, whoami->sanity_args);  
-      }
-      if ( whoami->return_val != SANITY_SUCCESS  && whoami->redo > 0 )
-      {
-        whoami->redo--;
-        whoami->flag = Task_None;
-        setcontext(&(whoami->context));
-      }
-#ifdef ENABLE_CONTEXT
-    }
-#endif
+    #ifdef ENERGY_STATS
+		likwid_markerStartRegion("Compute");
+		#endif
+		whoami->execution(whoami->execution_args);
+		#ifdef ENERGY_STATS
+		likwid_markerStopRegion("Compute");
+		#endif
     finished_task(exec_task);
-    whoami->flag = Task_None;
   }
+
+	return NULL;
 }
 

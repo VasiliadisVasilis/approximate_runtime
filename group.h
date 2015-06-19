@@ -2,7 +2,7 @@
 #define __GROUP_T__
 
 #include <pthread.h>
-#include "list.h"
+#include "task.h"
 
 #define SYNC_TIME 1
 #define SYNC_RATIO 2
@@ -13,27 +13,21 @@ enum { WAIT_DONE, WAIT_PENDING };
 pthread_mutex_t group_lock;
 pool_t *groups;
 
+#define PENDING_QUEUE_SIZE_STEP 100
+
+typedef struct tasks task_t;
+
 typedef struct groups{
-  
   char *name;
   
   int (*sanity_func) (void *);
   void* sanity_func_args;
   
-  unsigned int redo;
   float ratio;
-  
-  pool_t *pending_q;
-  volatile unsigned int pending_num;
+	unsigned int total;
   
   pool_t *executing_q;
   volatile unsigned int executing_num;
-  
-  pool_t *finished_q;
-  volatile unsigned int finished_sig_num;
-  volatile unsigned int finished_non_sig_num;
-  
-  
   
   unsigned int total_sig_tasks;
   unsigned int total_non_sig_tasks;
@@ -42,14 +36,13 @@ typedef struct groups{
   pthread_mutex_t lock;
   pthread_cond_t condition;
   
-  
-  unsigned int locked;
-  unsigned int terminated;
-  unsigned int schedule;
-  unsigned int executed;
-  unsigned int result;
+	/*vasiliad: buckets of tasks, each bucket has the same significance*/
+	task_t **pending_q[101];
+	unsigned int pending_num[101];
+	unsigned int pending_num_size[101];
 }group_t;
 
 group_t *create_group(char *name);
 int wait_group(char *group, int (*func) (void *),  void * args , unsigned int type, unsigned int time_ms, unsigned int time_us, float ratio, unsigned int redo);
+void stop_exec(); 
 #endif

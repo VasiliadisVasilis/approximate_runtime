@@ -3,19 +3,17 @@
 #include <string.h>
 #include <execinfo.h>
 #include "coordinator.h"
+#include "constants.h"
 #include "list.h"
 #include "task.h"
 #include "group.h"
 #include "debug.h"
 #include "config.h"
+#include "verbose.h"
+
 
 pool_t *pending_tasks;
-#ifdef DOUBLE_QUEUES
-pool_t *sig_ready_tasks;
-pool_t *non_sig_ready_tasks;
-#else
 pool_t *ready_tasks;
-#endif
 pool_t *executing_tasks;
 pool_t *finished_tasks;
 int debug_flag = 0;
@@ -26,9 +24,21 @@ task_t **assigned_jobs;
 pthread_cond_t cord_condition;
 pthread_mutex_t cord_lock;
 
-void explicit_sync(void *args);
+
+#ifdef ENERGY_STATS
+#include <likwid.h>
+#endif
+
+
+
+//#ifdef GEMFI
+extern char __executable_start;
+extern char __etext;
+//#endif
+
+int explicit_sync(void *args);
 void* main_acc(void *args);
-void finished_task(task_t* task);
+int finished_task(task_t* task);
 
 void print_trace(int nsig)
 {
@@ -53,13 +63,14 @@ void my_action(int sig, siginfo_t* siginfo, void *context){
   exit(0);
 }
 
+#if defined(ENABLE_SIGNALS) && defined(ENABLE_CONTEXT)
 void action(int sig, siginfo_t* siginfo, void *context){
   int i;
   pthread_t my_id = pthread_self();
-
   for ( i = 0 ; i < total_workers ; i++){
     if(my_id == my_threads[i].my_id ){
-      if(my_threads[i].flag == 1){
+      if(my_threads[i].exec_status == TASK_EXECUTING){
+        my_threads[i].exec_status = TASK_TERMINATED;
         setcontext(&(my_threads[i].context));
         return ;
       }
@@ -70,25 +81,53 @@ void action(int sig, siginfo_t* siginfo, void *context){
   }
   return ;
 }
+#endif
 
+#if defined(ENABLE_SIGNALS) && defined(ENABLE_CONTEXT)
+void seg_fault_action(int sig, siginfo_t* siginfo, void *context){
+  int i;
 
+  pthread_t my_id = pthread_self();
+  for ( i = 0 ; i < total_workers ; i++){
+    if(my_id == my_threads[i].my_id ){
+      if(my_threads[i].exec_status == TASK_EXECUTING)
+      {
+        DISABLE_FI( (my_threads+i) );
+        my_threads[i].exec_status = TASK_CRASHED;
+        setcontext(&(my_threads[i].context));
+        return ;
+      }
+      else{
+        break;
+      }
+    }
+  }
+  return;
+}
+#endif
 
 void* init_acc(void *args){
 #ifdef ENABLE_SIGNALS
   struct sigaction act;
+  struct sigaction sfh;
   
   memset(&act, 0, sizeof(act));
+  memset(&sfh, 0, sizeof(sfh));
+  sfh.sa_sigaction = seg_fault_action;
+  sfh.sa_flags = SA_SIGINFO;
+
   act.sa_sigaction = action;
   act.sa_flags = SA_SIGINFO;
 
-  if ( (sigaction(SIGILL,&act,NULL)<0)||
-      (sigaction(SIGFPE,&act,NULL)<0)||
-      (sigaction(SIGPIPE,&act,NULL)<0)||
-      (sigaction(SIGBUS,&act,NULL)<0)||
+  if ( (sigaction(SIGILL,&sfh,NULL)<0)||
+      (sigaction(SIGFPE,&sfh,NULL)<0)||
+      (sigaction(SIGPIPE,&sfh,NULL)<0)||
+      (sigaction(SIGABRT,&sfh,NULL)<0)||
+      (sigaction(SIGBUS,&sfh,NULL)<0)||
       (sigaction(SIGUSR1,&act,NULL)<0)||
       (sigaction(SIGUSR2,&act,NULL)<0)||
-      (sigaction(SIGSEGV,&act,NULL)<0)||
-      (sigaction(SIGSYS,&act,NULL)<0) ) {
+      (sigaction(SIGSEGV,&sfh,NULL)<0)||
+      (sigaction(SIGSYS,&sfh,NULL)<0) ) {
     perror("Could not assign signal handlers\n");
     exit(0);
   }
@@ -114,8 +153,7 @@ void init_system(unsigned int reliable_workers , unsigned int nonrel_workers)
     printf("Cannot request 0 workers\n Aborting....\n");
     exit(0);
   }
-
-
+  
   pending_tasks = create_pool();
 
   //Store here significant tasks with 
@@ -156,7 +194,10 @@ void init_system(unsigned int reliable_workers , unsigned int nonrel_workers)
     exit(0);
   }
 #endif
-
+	
+	#ifdef ENERGY_STATS
+		likwid_markerInit();
+	#endif
 
   my_threads = (info*) calloc(total_workers, sizeof(info));
 
@@ -167,6 +208,7 @@ void init_system(unsigned int reliable_workers , unsigned int nonrel_workers)
     pthread_cond_init(&my_threads[i].cond,NULL);
     pthread_attr_init(&my_threads[i].attributes);
     pthread_attr_setdetachstate(&my_threads[i].attributes,PTHREAD_CREATE_DETACHED);
+		my_threads[i].running = 1;
     my_threads[i].id = i;
     my_threads[i].sanity = NULL;
     my_threads[i].sanity_args = NULL;
@@ -182,4 +224,23 @@ void init_system(unsigned int reliable_workers , unsigned int nonrel_workers)
     pthread_create(&(my_threads[i].my_id), &(my_threads[i].attributes), init_acc, &my_threads[i]);
   } 
 
+}
+
+void shutdown_system()
+{
+	int i;
+
+	for ( i=0; i<total_workers; ++i )
+	{
+		my_threads[i].running = 0;
+	}
+
+	for (i=0; i<total_workers; ++i )
+	{
+		pthread_join(my_threads[i].my_id, NULL);
+	}
+	
+	#ifdef ENERGY_STATS
+	likwid_markerClose();
+	#endif
 }

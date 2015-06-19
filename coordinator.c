@@ -144,11 +144,11 @@ void check_sync(){
   return;
 }
 
-void init_system(unsigned int reliable_workers , unsigned int nonrel_workers)
+void init_system(unsigned int workers)
 {
   /* Create the corresponing pulls to store the task descriptors */
   int i;
-  total_workers = reliable_workers + nonrel_workers;
+	total_workers = workers;
   if(total_workers == 0){
     printf("Cannot request 0 workers\n Aborting....\n");
     exit(0);
@@ -156,17 +156,7 @@ void init_system(unsigned int reliable_workers , unsigned int nonrel_workers)
   
   pending_tasks = create_pool();
 
-  //Store here significant tasks with 
-  //unmet dependencies or tasks waiting for resources.
-  #ifdef DOUBLE_QUEUES
-  sig_ready_tasks = create_pool(); 
-
-  // Store here non - significant tasks with 
-  //unmet dependencies or tasks waiting for resources.
-  non_sig_ready_tasks = create_pool(); 
-  #else
   ready_tasks = create_pool();
-  #endif
   //Tasks which are executed at the moment.  
   executing_tasks = create_pool();
   // Tasks finished their execution. I store them in 
@@ -216,10 +206,6 @@ void init_system(unsigned int reliable_workers , unsigned int nonrel_workers)
     my_threads[i].execution_args = NULL;
     my_threads[i].work = 0;
     my_threads[i].checked_results = 1;
-    if( i >= reliable_workers)
-      my_threads[i].reliable = 0;
-    else
-      my_threads[i].reliable = 1;  
     assigned_jobs[i] = NULL;
     pthread_create(&(my_threads[i].my_id), &(my_threads[i].attributes), init_acc, &my_threads[i]);
   } 

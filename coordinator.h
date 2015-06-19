@@ -68,7 +68,7 @@ typedef struct info_t{
 	unsigned int running;
 }info;
 
-void init_system(unsigned int reliable_workers , unsigned int nonrel_workers);
+void init_system(unsigned int workers);
 void shutdown_system();
 
 #endif 

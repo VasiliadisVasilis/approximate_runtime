@@ -286,7 +286,7 @@ int main(int argc, char* argv[]) {
   {
     non_sig = 1;
   }
-  init_system(THREADS-non_sig, non_sig);
+  init_system(THREADS);
   start =my_time();
   ret = jacobi(mat, x, x1, b, y, N, itol, &iters, ratio);
  

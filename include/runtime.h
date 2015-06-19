@@ -20,7 +20,7 @@ int  push_task(task_t* task, char *group);
 
 
 int wait_group(char *group, int (*func) (void *),  void * args , unsigned int type, unsigned int time_ms, unsigned int time_us, float ratio, unsigned int redo);
-void init_system(unsigned int reliable_workers , unsigned int nonrel_workers);
+void init_system(unsigned int workers);
 void shutdown_system();
 void stop_exec();
 long my_time();

@@ -5,14 +5,10 @@
 #include <runtime.h>
 #include <sys/mman.h>
 #include <unistd.h>
-#ifdef GEMFI
-#include <m5op.h>
-#endif
 
 long my_time();
 
 #define TASK_WORK 200
-#define THRESHOLD 3 	// should be properly calculated
 
 typedef struct ARG_T arg_t;
 
@@ -30,12 +26,6 @@ double *construct_b(int size);
 int jacobi(double *A, double *x, double *x1,  double *b, double* y,
     long int size, double itol, unsigned int *iters, float ratio);
 double *construct_right(double* ret, int size, double *mat, double* sol);
-
-#ifdef SANITY
-int jacobi_trc(void *_args, void* not_used_at_all, int faulty);
-#endif
-
-
 
 
 double *construct_solution(double *ret,  int size) 
@@ -139,13 +129,6 @@ void jacobi_task(void *_args)
   x1 = a->x1;
   b = a->b;
 
-#ifdef GEMFI
-  if ( significance == NON_SIGNIFICANT )
-  {
-    fi_activate_inst(task_id, START);
-  }
-#endif
-
   i_b = i;
   if ( size-i > TASK_WORK )
     i_e = i+TASK_WORK;
@@ -175,13 +158,6 @@ void jacobi_task(void *_args)
     s[c] = ( (double) b[i] - s[c] ) / (double)A[i*size+i];
     x1[i] = s[c];
   }
-
-#ifdef GEMFI
-  if ( significance == NON_SIGNIFICANT )
-  {
-    fi_activate_inst(task_id, PAUSE);
-  }
-#endif
 }
 
 void jacobi_task_approx(void *args)

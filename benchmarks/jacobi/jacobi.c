@@ -281,26 +281,14 @@ int main(int argc, char* argv[]) {
   y = construct_solution(y, N);
   mat = construct_jacobi_matrix(mat, diagonally_dominant, N);
   b = construct_right(b, N, mat, y);
-#if PROTECT
-  mprotect(mat, bytes, PROT_READ);
-#endif
   non_sig = THREADS/2;
   if ( non_sig == 0 )
   {
     non_sig = 1;
   }
-#ifdef GEMFI
-  m5_switchcpu();
-#endif
   init_system(THREADS-non_sig, non_sig);
   start =my_time();
-#ifdef GEMFI
- m5_dumpreset_stats(0,0); 
-#endif
   ret = jacobi(mat, x, x1, b, y, N, itol, &iters, ratio);
-#ifdef GEMFI
- m5_dumpreset_stats(0,0); 
-#endif
  
   dur = my_time() - start;
   if ( ret == 0 ) {
@@ -311,20 +299,8 @@ int main(int argc, char* argv[]) {
   }
   printf("Threads=%d\nDuration=%g\nIterations=%u\n",
       THREADS, (double)(dur)/1000000.0, iters);
-#ifdef GEMFI
-  stop_exec();
-  for ( i=0; i<N; ++i)
-  {
-    m5_writefile( *((long*)(x+i)), sizeof(double), i*sizeof(double));
-  }
-  m5_exit(0);
-#endif
 	
 	shutdown_system();
-//  free(x1);
-//  free(x);
- // free(mat);
-
  return 0;
 }
 

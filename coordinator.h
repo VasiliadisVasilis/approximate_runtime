@@ -65,8 +65,10 @@ typedef struct info_t{
   // Not used variable
   unsigned int reliable;
   
+	unsigned int running;
 }info;
 
 void init_system(unsigned int reliable_workers , unsigned int nonrel_workers);
+void shutdown_system();
 
 #endif 

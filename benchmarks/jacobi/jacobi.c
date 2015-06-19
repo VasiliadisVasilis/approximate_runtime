@@ -11,7 +11,7 @@
 
 long my_time();
 
-#define TASK_WORK 10
+#define TASK_WORK 200
 #define THRESHOLD 3 	// should be properly calculated
 
 typedef struct ARG_T arg_t;
@@ -186,7 +186,6 @@ void jacobi_task(void *_args)
 
 void jacobi_task_approx(void *args)
 {
-	printf("APPROX BITCH!\n");
 	jacobi_task(args);
 }
 
@@ -208,7 +207,7 @@ int jacobi(double *A, double *x, double *x1,  double *b, double* y,
 
   for ( iter = 0; (iter<*iters) && (  dif > itol ) ; ++iter ) {
     sprintf(group_name, "jcb%d", iter);
-    significance = dif < itol*10 ? SIGNIFICANT -1 : NON_SIGNIFICANT +1;
+    significance = dif < itol*100 ? SIGNIFICANT : NON_SIGNIFICANT +1;
     for ( i=0; i<size; i+=TASK_WORK ) {
       arg.i = i;
       arg.size = size;
@@ -320,6 +319,8 @@ int main(int argc, char* argv[]) {
   }
   m5_exit(0);
 #endif
+	
+	shutdown_system();
 //  free(x1);
 //  free(x);
  // free(mat);

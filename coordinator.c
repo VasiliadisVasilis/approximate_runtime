@@ -11,13 +11,9 @@
 #include "config.h"
 #include "verbose.h"
 
+
 pool_t *pending_tasks;
-#ifdef DOUBLE_QUEUES
-pool_t *sig_ready_tasks;
-pool_t *non_sig_ready_tasks;
-#else
 pool_t *ready_tasks;
-#endif
 pool_t *executing_tasks;
 pool_t *finished_tasks;
 int debug_flag = 0;
@@ -27,6 +23,13 @@ task_t **assigned_jobs;
 
 pthread_cond_t cord_condition;
 pthread_mutex_t cord_lock;
+
+
+#ifdef ENERGY_STATS
+#include <likwid.h>
+#endif
+
+
 
 //#ifdef GEMFI
 extern char __executable_start;
@@ -191,7 +194,10 @@ void init_system(unsigned int reliable_workers , unsigned int nonrel_workers)
     exit(0);
   }
 #endif
-
+	
+	#ifdef ENERGY_STATS
+		likwid_markerInit();
+	#endif
 
   my_threads = (info*) calloc(total_workers, sizeof(info));
 
@@ -202,6 +208,7 @@ void init_system(unsigned int reliable_workers , unsigned int nonrel_workers)
     pthread_cond_init(&my_threads[i].cond,NULL);
     pthread_attr_init(&my_threads[i].attributes);
     pthread_attr_setdetachstate(&my_threads[i].attributes,PTHREAD_CREATE_DETACHED);
+		my_threads[i].running = 1;
     my_threads[i].id = i;
     my_threads[i].sanity = NULL;
     my_threads[i].sanity_args = NULL;
@@ -217,4 +224,23 @@ void init_system(unsigned int reliable_workers , unsigned int nonrel_workers)
     pthread_create(&(my_threads[i].my_id), &(my_threads[i].attributes), init_acc, &my_threads[i]);
   } 
 
+}
+
+void shutdown_system()
+{
+	int i;
+
+	for ( i=0; i<total_workers; ++i )
+	{
+		my_threads[i].running = 0;
+	}
+
+	for (i=0; i<total_workers; ++i )
+	{
+		pthread_join(my_threads[i].my_id, NULL);
+	}
+	
+	#ifdef ENERGY_STATS
+	likwid_markerClose();
+	#endif
 }

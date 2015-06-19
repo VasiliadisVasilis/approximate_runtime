@@ -12,6 +12,11 @@
 #include "debug.h"
 #include "config.h"
 
+
+#ifdef ENERGY_STATS
+#include <likwid.h>
+#endif
+
 extern task_t **assigned_jobs;
 
 extern pthread_cond_t cord_condition;
@@ -56,24 +61,33 @@ task_t* get_job(info *me){
       break;
     }
     pthread_mutex_unlock(&ready->lock);
-    pthread_yield();
+    sched_yield();
 
   }while(element == NULL);
   return element;
 }
 
-
-
 /* Just execute tasks as non-significant */
 void* main_acc(void *args){
   info *whoami = (info*) args;
   task_t *exec_task;
-
-  while(1)
+	
+	#ifdef ENERGY_STATS
+	likwid_markerThreadInit();
+	#endif
+  while(whoami->running)
   { 
     exec_task=get_job(whoami);
-    whoami->execution(whoami->execution_args);
+    #ifdef ENERGY_STATS
+		likwid_markerStartRegion("Compute");
+		#endif
+		whoami->execution(whoami->execution_args);
+		#ifdef ENERGY_STATS
+		likwid_markerStopRegion("Compute");
+		#endif
     finished_task(exec_task);
   }
+
+	return NULL;
 }
 

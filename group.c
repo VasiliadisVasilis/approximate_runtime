@@ -134,7 +134,9 @@ int wait_group(char *group, int (*func) (void *),  void * args , unsigned int ty
 		for (i=0; i<my_group->pending_num[sig]; ++i)
 		{
 			/*vasiliad: the first @ratio tasks will be set as significant*/
-			my_group->pending_q[sig][i]->significance = ( current++ < goal ) ? 
+			if ( my_group->pending_q[sig][i]->significance != SIGNIFICANT 
+					&& my_group->pending_q[sig][i]->significance != NON_SIGNIFICANT )
+				my_group->pending_q[sig][i]->significance = ( current++ < goal ) ? 
 					SIGNIFICANT : NON_SIGNIFICANT;
 			add_pool_head(ready_tasks, my_group->pending_q[sig][i]);
 			(my_group->executing_num)++;

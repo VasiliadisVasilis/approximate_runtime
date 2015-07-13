@@ -24,7 +24,7 @@ typedef struct IDCT_TASK_ARGS_T idct_task_args_t;
 
 struct DCT_TASK_ARGS_T
 {
-  long r, c, i, j;
+  long r, i, j, step, length;
 };
 
 struct IDCT_TASK_ARGS_T
@@ -37,9 +37,9 @@ int dct_trc(void *args, void *not_used_at_all, int faulty);
 int _dct_trc(long _r, long _c, long _i, long _j, int faulty);
 #endif
 
-void dct_task(void* args, unsigned int task_id, unsigned int significance);
-void idct_task(void* args, unsigned int task_id, unsigned int significance);
-void _idct_task(long _r, long _c);
+void dct_task(void* args);
+void idct_task(void* args);
+void _idct_task(long _r);
 
 int *quant_table;
 
@@ -106,286 +106,104 @@ void init_coef() {
 #endif
 }
 
-#ifdef SANITY
-int dct_trc(void *_args, void* not_used_at_all, int faulty)
-{
-  dct_task_args_t *args = (dct_task_args_t*) _args;
-  return _dct_trc(args->r, args->c, args->i, args->j, faulty);
-}
 
-int _dct_trc(long _r, long _c, long _i, long _j, int faulty)
-{
-  long i, j, r, c;
-  long c_e;
-
-  r = _r;
-  c = _c;
-  if ( WIDTH-_c > STEP_C )
-    c_e = _c+STEP_C;
-  else
-    c_e = WIDTH; 
-
-  if ( faulty )
-  {
-    printf("[RTS] TRC %ld %ld %ld %ld %d\n", _r, _c, _i, _j, faulty);
-    for ( c = _c; c<c_e; ++c )
-    {
-      for ( i=_i; i<_i+4; ++i )
-        for ( j=_j; j<_j+2; ++j)
-        {
-          dct[(r * 8 + i)*8*WIDTH + c * 8 + j] = 0;
-        }
-    }
-  }
-#ifndef RAZOR
-  else
-  {
-    for ( c = _c; c<c_e; ++c )
-    {
-      for ( i=_i; i<_i+4; ++i )
-        for ( j=_j; j<_j+2; ++j)
-        {
-          if (dct[(r * 8 + i)*8*WIDTH + c * 8 + j]*quant_table[i*8+j] > MAX_DCT_COEFF )
-          {
-            printf("[RTS] TRC (NoSigTask) %ld %ld %ld %ld %d, faulty Value: %f\n", _r, _c, _i, _j, faulty, dct[(r * 8 + i)*8*WIDTH + c * 8 + j]*quant_table[i*8+j]);
-            dct[(r * 8 + i)*8*WIDTH + c * 8 + j] = 0;
-          }
-        }
-    }
-  }
-#endif
-  return SANITY_SUCCESS;
-}
-#endif
-
-void dct_task(void *_args, unsigned int task_id, unsigned int significance)
+void dct_task(void *_args)
 {
   dct_task_args_t *args = (dct_task_args_t*) _args;
   long _r = args->r;
-  long _c = args->c;
   long _i = args->i;
   long _j = args->j;
-  long x, y, i, j, r, c;
-  long c_e;
+  long step = args->step;
+  long length = args->length;
+  long x, y, i, j, r, c, l;
   double sum = 0;
 
-#ifdef GEMFI
-  if ( significance == NON_SIGNIFICANT )
-  {
-    fi_activate_inst(task_id, START);
-  }
-#endif
-
-#if 0
-  long start;
-  if ( significance == NON_SIGNIFICANT )
-  {
-    start = my_time();
-
-    while ( my_time() - start < 10000 * 1 );
-  }
-  else
-  {
-    start = my_time();
-
-    while ( my_time() - start < 100000 * 1 );
-    printf("sig\n");
-  }
-#endif
-
   r = _r;
-  c = _c;
-  if ( WIDTH-_c > STEP_C )
-    c_e = _c+STEP_C;
-  else
-    c_e = WIDTH; 
 
-  for ( c = _c; c<c_e; ++c )
+  for ( c = 0; c<WIDTH; ++c )
   {
-    for ( i=_i; i<_i+4; ++i )
-      for ( j=_j; j<_j+2; ++j)
-      {
-        sum = 0;
-        for (x = 0; x < 8; x++)
-          for (y = 0; y < 8; y++)
-          {
-            sum += ( (double)pic[(r * 8 + x)*8*WIDTH + c * 8 + y] - 128) * COS[x*8+i] * COS[y*8+j];
-          }
-        sum *= C[i] * C[j] * 0.25;
-        dct[(r * 8 + i)*8*WIDTH + c * 8 + j] = sum;
-        quantization_task(dct, quant_table[i*8+j], r, c, i, j);
-      }
-  }
+    i = _i;
+    j = _j;
 
-#ifdef GEMFI
-  if ( significance == NON_SIGNIFICANT )
-  {
-    fi_activate_inst(task_id, PAUSE);
+    for ( l=0; l<length; ++l)
+    {
+      sum = 0;
+      for (x = 0; x < 8; x++)
+        for (y = 0; y < 8; y++)
+        {
+          sum += ( (double)pic[(r * 8 + x)*8*WIDTH + c * 8 + y] - 128) *
+            COS[x*8+i] * COS[y*8+j];
+        }
+      sum *= C[i] * C[j] * 0.25;
+      dct[(r * 8 + i)*8*WIDTH + c * 8 + j] = sum;
+      quantization_task(dct, quant_table[i*8+j], r, c, i, j);
+      i+=-step;
+      j+=step;
+    }
   }
-#endif
 }
 
-void spawn_dct_task(long r, long c, long i, long j, uint8_t significance)
+void spawn_dct_task(int row, int i, int j, int length, int step,
+    uint8_t significance)
 {
   task_t *task;
   dct_task_args_t args;
 
-  args.r = r;
-  args.c = c;
+  args.r = row;
   args.i = i;
   args.j = j;
+  args.step = step;
+  args.length = length;
 
-#ifdef SANITY
-  task = new_task(dct_task, &args, sizeof(args), dct_trc, NULL, 0, significance, 0);
-#else
-  task = new_task(dct_task, &args, sizeof(args), NULL, NULL, 0, significance, 0);
-#endif
+  task = new_task(dct_task, &args, sizeof(args), NULL, significance);
   push_task(task, "dct");
 }
-
-/*
-   Significance, higher is ... more significant
-   100  90  80  70
-   90  85  75  60
-   80  75  60  50
-   70  60  50  40
- */
-
-#ifdef NON_SIGNIFICANT_TASKS
-int _dct_trc_sig(long _r, long _c, long _i, long _j, int faulty)
-{
-  long i, j, r, c;
-  long c_e;
-
-  r = _r;
-  c = _c;
-  if ( WIDTH-_c > STEP_C )
-    c_e = _c+STEP_C;
-  else
-    c_e = WIDTH; 
-
-  if ( faulty )
-  {
-    printf("[RTS] TRC %d %d %d %d %d\n", _r, _c, _i, _j, faulty);
-    for ( c = _c; c<c_e; ++c )
-    {
-      for ( i=_i; i<_i+4; ++i )
-        for ( j=_j; j<_j+2; ++j)
-        {
-          dct[(r * 8 + i)*8*WIDTH + c * 8 + j] = 0;
-        }
-    }
-  }
-#ifndef RAZOR
-  else
-  {
-    for ( c = _c; c<c_e; ++c )
-    {
-      for ( i=_i; i<_i+4; ++i )
-        for ( j=_j; j<_j+2; ++j)
-        {
-          if (dct[(r * 8 + i)*8*WIDTH + c * 8 + j]*quant_table[i*8+j] > MAX_DCT_COEFF_SIG )
-          {
-            printf("[RTS] TRC (SigTask) %d %d %d %d %d, faulty Value: %f\n", _r, _c, _i, _j, faulty, dct[(r * 8 + i)*8*WIDTH + c * 8 + j]*quant_table[i*8+j]);
-            dct[(r * 8 + i)*8*WIDTH + c * 8 + j] = 0;
-          }
-        }
-    }
-  }
-#endif
-  return SANITY_SUCCESS;
-}
-
-int dct_trc_sig(void *_args, void* not_used_at_all, int faulty)
-{
-  dct_task_args_t *args = (dct_task_args_t*) _args;
-  return _dct_trc_sig(args->r, args->c, args->i, args->j, faulty);
-}
-
-
-
-void spawn_dct_task_sig (long r, long c, long i, long j, uint8_t significance)
-{
-  task_t *task;
-  dct_task_args_t args;
-
-  args.r = r;
-  args.c = c;
-  args.i = i;
-  args.j = j;
-
-#ifdef SANITY
-  task = new_task(dct_task, &args, sizeof(args), dct_trc_sig, NULL, 0, significance, 0);
-#else
-  task = new_task(dct_task, &args, sizeof(args), NULL, NULL, 0, significance, 0);
-#endif
-  push_task(task, "dct");
-}
-
-
-#endif
 
 
 
 void DCT(unsigned char pic[], double dct[], double COS[], double C[]) {
 
-  long r, c, k;
+  long r;
 
+  /*  100, 49, 25, 16, 12, 9, 8, 7, 6, 5, 4, 3, 2, 2, 1*/
   for (r = 0; r < HEIGHT; r++)
-    for (k=0; k < WIDTH/STEP_C; k++)
-    {
-      c = k*STEP_C;
-#ifdef NON_SIGNIFICANT_TASKS
-      spawn_dct_task_sig(r, c, 0, 0, 0);
-#else
-      spawn_dct_task(r, c, 0, 0, SIGNIFICANT );
-#endif
-      spawn_dct_task(r, c, 0, 2, 60  < RATIO*100);
-      spawn_dct_task(r, c, 0, 4, 50  < RATIO*100);
-      spawn_dct_task(r, c, 0, 6, 40  < RATIO*100);
-      /*    spawn_dct_task(r, c, 2, 0, 90);
-            spawn_dct_task(r, c, 2, 2, 85);
-            spawn_dct_task(r, c, 2, 4, 75);
-            spawn_dct_task(r, c, 2, 6, 60);*/
-      spawn_dct_task(r, c, 4, 0, 60  < RATIO*100);
-      spawn_dct_task(r, c, 4, 2, 50  < RATIO*100);
-      spawn_dct_task(r, c, 4, 4, 40  < RATIO*100);
-      spawn_dct_task(r, c, 4, 6, 30  < RATIO*100);
-      /*      spawn_dct_task(r, c, 6, 0, 70);
-              spawn_dct_task(r, c, 6, 2, 60);
-              spawn_dct_task(r, c, 6, 4, 50);
-              spawn_dct_task(r, c, 6, 6, 40);*/
-    }
-#ifdef TIMER
-  wait_group("dct", NULL, NULL, SYNC_RATIO|SYNC_TIME, 400, 0, 1.0f, 0);
-#else
-  wait_group("dct", NULL, NULL, SYNC_RATIO, 0, 0, 1.0f, 0);
-#endif
-  //#pragma taskwait all label(dct)
+  {
+    spawn_dct_task(r, 0, 0,   1,  1, 100);
+    spawn_dct_task(r, 0, 1,   2, -1,  49);
+    spawn_dct_task(r, 2, 0,   3,  1,  25);
+    spawn_dct_task(r, 0, 3,   4, -1,  16);
+    spawn_dct_task(r, 4, 0,   5,  1,  12);
+    spawn_dct_task(r, 0, 5,   6, -1,  10);
+    spawn_dct_task(r, 6, 0,   7,  1,   9);
 
+    spawn_dct_task(r, 0, 7,   8, -1,   8);
+
+    spawn_dct_task(r, 7, 1,   7,  1,   7);
+    spawn_dct_task(r, 2, 7,   6, -1,   6);
+    spawn_dct_task(r, 7, 3,   5,  1,   5);
+    spawn_dct_task(r, 4, 7,   4, -1,   4);
+    spawn_dct_task(r, 5, 7,   3,  1,   3);
+    spawn_dct_task(r, 7, 6,   2, -1,   2);
+    spawn_dct_task(r, 7, 7,   1,  1,   1);
+  }
+  wait_group("dct", NULL, NULL, SYNC_RATIO, 0, 0, RATIO, 0);
   return;
 }
 
 
-void idct_task(void *_args, unsigned int task_id, unsigned int significance)
+void idct_task(void *_args)
 {
   idct_task_args_t *args = (idct_task_args_t*) _args;
-  _idct_task(args->r, args->c);
+  _idct_task(args->r);
 }
 
-void _idct_task(long _r, long _c)
+void _idct_task(long _r)
 {
   long x, y, i, j, r, c;
-  long c_e;
   double sum = 0;
   r = _r;
-  c = _c;
-  if ( WIDTH-_c > STEP_C )
-    c_e = _c+STEP_C;
-  else
-    c_e = WIDTH; 
 
-  for ( c = _c; c<c_e; ++c )
+  for ( c = 0; c<WIDTH; ++c )
   {
     for ( i=0; i<8; ++i )
       for ( j=0; j<8; ++j)
@@ -406,13 +224,12 @@ void IDCT() {
   FILE *out;
 
   for (r = 0; r < HEIGHT; r++)
-    for (c = 0; c < WIDTH; c+=STEP_C)
-    { 
-      args.r = r;
-      args.c = c;
-      task = new_task(idct_task, &args, sizeof(args), NULL, NULL, 0, 1, 0);
-      push_task(task, "idct");
-    }
+  { 
+    args.r = r;
+    args.c = 0;
+    task = new_task(idct_task, &args, sizeof(args), NULL, 100);
+    push_task(task, "idct");
+  }
 
   wait_group("idct", NULL, NULL, SYNC_RATIO, 0, 0, 1.0f, 0);
   // freopen("decoded_image.raw", "wb", stdout);
@@ -438,14 +255,6 @@ double MSE_PSNR() {
   return PSNR;
 }
 
-void fillInDCT(double *dct){
-  FILE *fd = fopen("ApplicationOutput","rb");
-  if ( fread(dct,sizeof(double),512*512,fd) != 512*512 )
-  {
-    assert(0 && "Failed to open file");
-  }
-  fclose(fd);
-}
 
 
 int main(int argc, char* argv[]) {
@@ -462,20 +271,11 @@ int main(int argc, char* argv[]) {
     return (0);
   }
 
-
-
-
-  /*  C = malloc(sizeof(double)*8);
-      COS = malloc(sizeof(double)*64); 
-      pic = malloc(sizeof(unsigned char)*WIDTH*HEIGHT*64);
-   */
   WIDTH = atoi(argv[1]);
   HEIGHT = atoi(argv[2]);
   RATIO = atof(argv[3]);
   THREADS = atoi(argv[4]);
-#ifndef GEMFI
   dct = malloc(sizeof(double)*WIDTH*HEIGHT*64);
-#endif
   idct = malloc(sizeof(double)*WIDTH*HEIGHT*64);
   bytes = sizeof(double) *(64+8) + sizeof(int)*64 + (WIDTH*HEIGHT*64);
   page = sysconf(_SC_PAGESIZE);
@@ -491,7 +291,6 @@ int main(int argc, char* argv[]) {
   memcpy(quant_table, _quant_table, sizeof(int)*64);
 
 
-#if 1
   in = fopen("lena512.raw", "rb");
   assert(in);
   for (r = 0; r < N; r++)
@@ -500,12 +299,6 @@ int main(int argc, char* argv[]) {
       assert(fscanf(in, "%c", &pic[r*8*WIDTH+c]));
     }
   fclose(in);
-#else
-  for (r = 0; r < N; r++)
-    for (c = 0; c < N; c++){
-      pic[r*8*WIDTH+c] = r%16;
-    }
-#endif
 
   init_coef();
   for (r = 0; r < HEIGHT*8; r++)
@@ -513,46 +306,25 @@ int main(int argc, char* argv[]) {
       pic[r*8*WIDTH+c] = pic[(r%512)*8*WIDTH+c%512];
     }
 
-#ifdef PROTECT
-  mprotect(quant_table, bytes,  PROT_READ);
-#endif
 
   non_sig = THREADS/2;
   if ( non_sig == 0 )
   {
     non_sig = 1;
   }
-#ifdef GEMFI
-  m5_switchcpu();
-#endif
-  init_system(THREADS-non_sig, non_sig);
-#ifdef GEMFI
-#warning compiling for gemfi execution
-  m5_dumpreset_stats(0,0);
-#else
+  init_system(THREADS);
   start = this_time();
-#endif
   DCT(pic, dct, COS, C);
-#ifdef GEMFI
-#warning compiling for gemfi execution
-  stop_exec();
-  m5_dumpreset_stats(0,0);
-  int i;
-  unsigned char *vals = (unsigned char *) dct;
-  for ( i = 0 ;  i < WIDTH*HEIGHT*64*sizeof(double) ; i++){
-    m5_writefile((unsigned long) vals[i],sizeof(unsigned char) ,i);
-  }
-#else
   //  fillInDCT(dct);
   IDCT();
   end = this_time();
+  shutdown_system();
   psnr = MSE_PSNR();
   fprintf(stderr, "===Approx DCT===\n");
   fprintf(stderr, "  Duration[ms]=%g\n", (double)(end-start)/1000.0);
   fprintf(stderr, "  PSNR=%g\n", psnr);
   fprintf(stderr, "  Ratio=%g\n", RATIO);
   fprintf(stderr, "=================\n");
-#endif
   return 0;
 }
 

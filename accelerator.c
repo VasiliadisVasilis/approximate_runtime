@@ -81,7 +81,8 @@ void* main_acc(void *args){
     #ifdef ENERGY_STATS
 		likwid_markerStartRegion("Compute");
 		#endif
-		whoami->execution(whoami->execution_args);
+    if ( whoami->execution )
+      whoami->execution(whoami->execution_args);
 		#ifdef ENERGY_STATS
 		likwid_markerStopRegion("Compute");
 		#endif

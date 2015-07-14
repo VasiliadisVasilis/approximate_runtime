@@ -354,10 +354,9 @@ int main(int argc, char* argv[]) {
   end = this_time();
   shutdown_system();
   psnr = MSE_PSNR();
-  fprintf(stderr, "===Approx DCT===\n");
-  fprintf(stderr, "  Duration[ms]=%g\n", (double)(end-start)/1000.0);
-  fprintf(stderr, "  Ratio, PSNR=%g %g\n", RATIO, psnr);
-  fprintf(stderr, "=================\n");
+  printf("Duration,%g\n", (double)(end-start)/1000.0);
+  printf("PSNR,%.32lg\n", psnr);
+  printf("Ratio,%g\n", RATIO);
   return 0;
 }
 

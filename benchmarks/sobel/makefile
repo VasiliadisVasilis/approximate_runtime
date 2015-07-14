@@ -13,14 +13,14 @@ LFLAGS = -L$(LIKWID_BASE)/ -L../../ -L../../fi
 LIBS += -lm -lrt -lrtsrel  -llikwid  -lpthread 
 
 
-dct_idct:dct_idct.o
-	$(CC) -o dct_idct $(CFLAGS) $(INCLUDE) $(LFLAGS) dct_idct.o $(LIBS) 
+sobel:sobel.o
+	$(CC) -o sobel $(CFLAGS) $(INCLUDE) $(LFLAGS) sobel.o $(LIBS) 
 
-dct_idct.o: dct_idct.c
-	$(CC) $(CFLAGS) $(INCLUDE) dct_idct.c -c 
+sobel.o: sobel.c
+	$(CC) $(CFLAGS) $(INCLUDE) sobel.c -c 
 
 image:
 	convert -depth 8 -size 512x512 GRAY:decoded_image.raw decoded_image.jpg
 
 clean:
-	rm -f *.o *~ dct_idctimage: decoded_image.raw
+	rm -f *.o *~ sobelimage: decoded_image.raw

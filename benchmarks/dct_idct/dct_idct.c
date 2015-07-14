@@ -9,6 +9,8 @@
 #include <unistd.h>
 #include <string.h>
 
+#define STEP_ROW 16
+
 #ifdef GEMFI
 #include <m5op.h>
 #endif
@@ -40,6 +42,8 @@ int _dct_trc(long _r, long _c, long _i, long _j, int faulty);
 void dct_task(void* args);
 void idct_task(void* args);
 void _idct_task(long _r);
+void dct_task_dc(void *dummy);
+
 
 int *quant_table;
 
@@ -106,6 +110,29 @@ void init_coef() {
 #endif
 }
 
+void dct_task_dc(void *dummy)
+{
+  long x, y, r, c, l;
+  double sum = 0, factor = C[0] * C[0] * 0.25;
+
+  for ( r = 0; r<HEIGHT; ++r)
+  {
+    for ( c = 0; c<WIDTH; ++c )
+    {
+      sum = 0;
+      for (x = 0; x < 8; x++)
+        for (y = 0; y < 8; y++)
+        {
+          sum += ( (double)pic[(r * 8 + x)*8*WIDTH + c * 8 + y] - 128) *
+            COS[x*8] * COS[y*8];
+        }
+      sum *= factor;
+      dct[(r * 8 )*8*WIDTH + c * 8] = sum;
+      quantization_task(dct, quant_table[0], r, c, 0, 0);
+    }
+  }
+}
+
 
 void dct_task(void *_args)
 {
@@ -118,27 +145,28 @@ void dct_task(void *_args)
   long x, y, i, j, r, c, l;
   double sum = 0;
 
-  r = _r;
-
-  for ( c = 0; c<WIDTH; ++c )
+  for ( r = _r; r<_r+STEP_ROW; ++r)
   {
-    i = _i;
-    j = _j;
-
-    for ( l=0; l<length; ++l)
+    for ( c = 0; c<WIDTH; ++c )
     {
-      sum = 0;
-      for (x = 0; x < 8; x++)
-        for (y = 0; y < 8; y++)
-        {
-          sum += ( (double)pic[(r * 8 + x)*8*WIDTH + c * 8 + y] - 128) *
-            COS[x*8+i] * COS[y*8+j];
-        }
-      sum *= C[i] * C[j] * 0.25;
-      dct[(r * 8 + i)*8*WIDTH + c * 8 + j] = sum;
-      quantization_task(dct, quant_table[i*8+j], r, c, i, j);
-      i+=-step;
-      j+=step;
+      i = _i;
+      j = _j;
+
+      for ( l=0; l<length; ++l)
+      {
+        sum = 0;
+        for (x = 0; x < 8; x++)
+          for (y = 0; y < 8; y++)
+          {
+            sum += ( (double)pic[(r * 8 + x)*8*WIDTH + c * 8 + y] - 128) *
+              COS[x*8+i] * COS[y*8+j];
+          }
+        sum *= C[i] * C[j] * 0.25;
+        dct[(r * 8 + i)*8*WIDTH + c * 8 + j] = sum;
+        quantization_task(dct, quant_table[i*8+j], r, c, i, j);
+        i+=-step;
+        j+=step;
+      }
     }
   }
 }
@@ -165,10 +193,14 @@ void DCT(unsigned char pic[], double dct[], double COS[], double C[]) {
 
   long r;
 
+  task_t *task;
+
+  task = new_task(dct_task_dc, NULL, 0, NULL, 100);
+  push_task(task, "dct");
+
   /*  100, 49, 25, 16, 12, 9, 8, 7, 6, 5, 4, 3, 2, 2, 1*/
-  for (r = 0; r < HEIGHT; r++)
+  for (r = 0; r < HEIGHT; r+=STEP_ROW)
   {
-    spawn_dct_task(r, 0, 0,   1,  1, 100);
     spawn_dct_task(r, 0, 1,   2, -1,  49);
     spawn_dct_task(r, 2, 0,   3,  1,  25);
     spawn_dct_task(r, 0, 3,   4, -1,  16);
@@ -182,8 +214,8 @@ void DCT(unsigned char pic[], double dct[], double COS[], double C[]) {
     spawn_dct_task(r, 2, 7,   6, -1,   6);
     spawn_dct_task(r, 7, 3,   5,  1,   5);
     spawn_dct_task(r, 4, 7,   4, -1,   4);
-    spawn_dct_task(r, 5, 7,   3,  1,   3);
-    spawn_dct_task(r, 7, 6,   2, -1,   2);
+    spawn_dct_task(r, 7, 5,   3,  1,   3);
+    spawn_dct_task(r, 6, 7,   2, -1,   2);
     spawn_dct_task(r, 7, 7,   1,  1,   1);
   }
   wait_group("dct", NULL, NULL, SYNC_RATIO, 0, 0, RATIO, 0);
@@ -221,7 +253,6 @@ void IDCT() {
   idct_task_args_t args;
   task_t *task;
   long r, c;
-  FILE *out;
 
   for (r = 0; r < HEIGHT; r++)
   { 
@@ -233,12 +264,15 @@ void IDCT() {
 
   wait_group("idct", NULL, NULL, SYNC_RATIO, 0, 0, 1.0f, 0);
   // freopen("decoded_image.raw", "wb", stdout);
+  /*
+  FILE *out;
   out = fopen("decoded_image.raw", "wb");
   assert(out);
   for (r = 0; r < N; r++)
     for (c = 0; c < N; c++)
       fputc(idct[r*WIDTH*8+c], out);
   fclose(out);
+  */
 }
 
 double MSE_PSNR() {
@@ -322,8 +356,7 @@ int main(int argc, char* argv[]) {
   psnr = MSE_PSNR();
   fprintf(stderr, "===Approx DCT===\n");
   fprintf(stderr, "  Duration[ms]=%g\n", (double)(end-start)/1000.0);
-  fprintf(stderr, "  PSNR=%g\n", psnr);
-  fprintf(stderr, "  Ratio=%g\n", RATIO);
+  fprintf(stderr, "  Ratio, PSNR=%g %g\n", RATIO, psnr);
   fprintf(stderr, "=================\n");
   return 0;
 }

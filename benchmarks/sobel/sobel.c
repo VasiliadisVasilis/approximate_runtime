@@ -7,7 +7,7 @@
 #include <sys/time.h>
 #include <runtime.h>
 
-#define STEP 2
+#define STEP 20
 
 long this_time()
 {
@@ -113,7 +113,7 @@ void sobel_task_approx(void *_args)
 	row = args->row;
 
 	int end = row+STEP < height-1 ? row+STEP : height-1;
-
+	
 	for ( i=row; i<end; ++i )
 	{
 		for ( j=1; j<width-1; ++j)
@@ -157,6 +157,10 @@ void sobel(double *output_image, double *input_image,
 	unsigned int p, row, column;
 	sobel_args_t args;
 	task_t *task;
+	static int cur = 0;
+	char group_name[1024];
+
+	sprintf(group_name, "sobel_%d", ++cur);
 
 	args.out = output_image;
 	args.input = input_image;
@@ -166,10 +170,10 @@ void sobel(double *output_image, double *input_image,
 	for (row=1; row<height-1; row+=STEP) {
 		args.row = row;
 		task = new_task(sobel_task, &args, sizeof(args), sobel_task_approx, 50 + (row/STEP)%10 );
-		push_task(task, "sobel");
+		push_task(task, group_name);
 	}
 
-	wait_group("sobel", NULL, NULL, SYNC_RATIO, 0, 0, ratio, 0);
+	wait_group(group_name, NULL, NULL, SYNC_RATIO, 0, 0, ratio, 0);
 }
 
 void sobel2(double *output_image, double *input_image,
@@ -210,7 +214,7 @@ int main(int argc, char* argv[])
 {
 	double PSNR, ratio;
 	double *output_image, *input_image, *sobel_image;
-	unsigned int width, height, row, column, k;
+	unsigned int width, height, row, column, i;
 	unsigned char c, *pic;
 	long start, end;
 	FILE *f;
@@ -256,7 +260,10 @@ int main(int argc, char* argv[])
 	init_system(atoi(argv[4]));
 
 	start = this_time();
-	sobel(output_image, input_image, width, height, ratio);
+	for ( i=0; i<50; ++i )
+	{
+		sobel(output_image, input_image, width, height, ratio);
+	}
 	end = this_time();
 	shutdown_system();
 	PSNR = calc_psnr(output_image, sobel_image, width, height);

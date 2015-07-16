@@ -16,11 +16,13 @@
 #include "include/runtime.h" 
 #include "config.h"
 
+#define BATCH_SIZE 2
 
-extern pool_t *ready_tasks;
+
 extern info *my_threads;
 extern int debug_flag ;
 extern unsigned int total_workers;
+extern info* my_threads;
 
 
 long my_time()
@@ -126,8 +128,13 @@ int wait_group(char *group, int (*func) (void *),  void * args , unsigned int ty
 	goal = my_group->total * ratio;
 	current = 0;
 
-	pthread_mutex_lock(&ready_tasks->lock);
 
+	
+	int consequtive = 0;
+	int worker = 0;
+
+	element_t *e;
+	my_group->executing_num = 0;
 	/*vasiliad: Select the actual significance values of tasks*/
  	for (sig=SIGNIFICANT; sig >= NON_SIGNIFICANT; sig--)
 	{	
@@ -138,8 +145,17 @@ int wait_group(char *group, int (*func) (void *),  void * args , unsigned int ty
 					&& my_group->pending_q[sig][i]->significance != NON_SIGNIFICANT )
 				my_group->pending_q[sig][i]->significance = ( current++ < goal ) ? 
 					SIGNIFICANT : NON_SIGNIFICANT;
-			add_pool_head(ready_tasks, my_group->pending_q[sig][i]);
-			(my_group->executing_num)++;
+			queue_make_element(&e, my_group->pending_q[sig][i]);
+			consequtive++;
+			if ( consequtive%BATCH_SIZE == 0 )
+			{
+				++worker;
+				worker = worker % total_workers;
+			}
+
+			queue_push(my_threads[worker].work_queue, e);
+			
+			my_group->executing_num++;
 			if ( my_group->pending_q[sig][i]->significance == SIGNIFICANT )
 			{
 				my_group->total_sig_tasks ++;
@@ -151,8 +167,7 @@ int wait_group(char *group, int (*func) (void *),  void * args , unsigned int ty
 		}
 	}
 
-	pthread_mutex_unlock(&ready_tasks->lock);
- 	
+ 	printf("Tasks: %d\n", my_group->executing_num);
 	/*vasiliad: Rendezvous with the thread workers*/
 	pthread_cond_wait(&my_group->condition, &my_group->lock);
 

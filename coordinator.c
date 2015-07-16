@@ -63,78 +63,9 @@ void my_action(int sig, siginfo_t* siginfo, void *context){
   exit(0);
 }
 
-#if defined(ENABLE_SIGNALS) && defined(ENABLE_CONTEXT)
-void action(int sig, siginfo_t* siginfo, void *context){
-  int i;
-  pthread_t my_id = pthread_self();
-  for ( i = 0 ; i < total_workers ; i++){
-    if(my_id == my_threads[i].my_id ){
-      if(my_threads[i].exec_status == TASK_EXECUTING){
-        my_threads[i].exec_status = TASK_TERMINATED;
-        setcontext(&(my_threads[i].context));
-        return ;
-      }
-      else{
-        break;
-      }
-    }
-  }
-  return ;
-}
-#endif
-
-#if defined(ENABLE_SIGNALS) && defined(ENABLE_CONTEXT)
-void seg_fault_action(int sig, siginfo_t* siginfo, void *context){
-  int i;
-
-  pthread_t my_id = pthread_self();
-  for ( i = 0 ; i < total_workers ; i++){
-    if(my_id == my_threads[i].my_id ){
-      if(my_threads[i].exec_status == TASK_EXECUTING)
-      {
-        DISABLE_FI( (my_threads+i) );
-        my_threads[i].exec_status = TASK_CRASHED;
-        setcontext(&(my_threads[i].context));
-        return ;
-      }
-      else{
-        break;
-      }
-    }
-  }
-  return;
-}
-#endif
 
 void* init_acc(void *args){
-#ifdef ENABLE_SIGNALS
-  struct sigaction act;
-  struct sigaction sfh;
-  
-  memset(&act, 0, sizeof(act));
-  memset(&sfh, 0, sizeof(sfh));
-  sfh.sa_sigaction = seg_fault_action;
-  sfh.sa_flags = SA_SIGINFO;
-
-  act.sa_sigaction = action;
-  act.sa_flags = SA_SIGINFO;
-
-  if ( (sigaction(SIGILL,&sfh,NULL)<0)||
-      (sigaction(SIGFPE,&sfh,NULL)<0)||
-      (sigaction(SIGPIPE,&sfh,NULL)<0)||
-      (sigaction(SIGABRT,&sfh,NULL)<0)||
-      (sigaction(SIGBUS,&sfh,NULL)<0)||
-      (sigaction(SIGUSR1,&act,NULL)<0)||
-      (sigaction(SIGUSR2,&act,NULL)<0)||
-      (sigaction(SIGSEGV,&sfh,NULL)<0)||
-      (sigaction(SIGSYS,&sfh,NULL)<0) ) {
-    perror("Could not assign signal handlers\n");
-    exit(0);
-  }
-#endif
-
   main_acc(args);
-
   return NULL;
 }
 
@@ -204,9 +135,11 @@ void init_system(unsigned int workers)
     my_threads[i].sanity_args = NULL;
     my_threads[i].execution = NULL;
     my_threads[i].execution_args = NULL;
-    my_threads[i].work = 0;
     my_threads[i].checked_results = 1;
+		queue_init(&(my_threads[i].work_queue));
     assigned_jobs[i] = NULL;
+		
+
     pthread_create(&(my_threads[i].my_id), &(my_threads[i].attributes), init_acc, &my_threads[i]);
   } 
 

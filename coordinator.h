@@ -4,6 +4,7 @@
 #include <pthread.h>
 #include <time.h>
 #include <ucontext.h>
+#include "queue.h"
 
 enum ReliabilityMode {NON_RELIABLE, RELIABLE};
 enum TaskStatus {TASK_NONE, TASK_EXECUTING, TASK_SANITY, TASK_CRASHED, TASK_TERMINATED};
@@ -34,11 +35,7 @@ typedef struct info_t{
   
   //synchronization variables.
   pthread_cond_t cond;
-  
-  // work is set to zero when the worker has no
-  // tasks to pending for execution.
-  unsigned int work;
-  
+
   // reliability of the worker.
   unsigned char sig;
   
@@ -66,6 +63,9 @@ typedef struct info_t{
   unsigned int reliable;
   
 	unsigned int running;
+	
+	queue_t *work_queue;
+	
 }info;
 
 void init_system(unsigned int workers);

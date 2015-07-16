@@ -11,7 +11,7 @@ do
 	do
 		file="exps/exp_${r}_${i}"
 		echo $file
-		likwid-perfctr -C 1-3 -m -O -g ENERGY ./sobel 20480 20480 $r 3 2>&1 > $file
+		likwid-perfctr -C 1-3 -m -O -g ENERGY ./sobel 10240 10240 $r 3 2>&1 > $file
     duration=$(cat $file  | grep "Duration," | cut -f2 -d ",")
     energy=$(cat $file  | grep "Energy \[J\]," | cut -f2 -d ",")
     psnr=$(cat $file | grep "PSNR" | cut -f2 -d ",")

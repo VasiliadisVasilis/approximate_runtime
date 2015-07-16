@@ -35,35 +35,27 @@ extern pool_t *finished_tasks;
 
 task_t* get_job(info *me){
   task_t *element = NULL;
-  pool_t *ready;
+	int ret;
 
-  ready = ready_tasks;
-  do{
-    pthread_mutex_lock(&ready->lock);
-    if(ready->head){
-      element = pop_first(ready);
-    }
-    if(element){
-      move_q(element);
-			if ( element->significance == SIGNIFICANT )
-			{
-      	me->execution = element->execution;
-			}
-			else
-			{
-				me->execution = element->execution_nonsig;
-			}
-      me->execution_args = element->execution_args;
-      me->significance = element->significance;
-      element->execution_thread = me->my_id;
-      element->execution_id = me->id;
-      pthread_mutex_unlock(&ready->lock);
-      break;
-    }
-    pthread_mutex_unlock(&ready->lock);
-    sched_yield();
+	do
+	{
+		ret = queue_pop(me->work_queue, (void**)&element);
+		if ( ret != 0 )
+		{
+			sched_yield();
+			continue;
+		}
+		if ( element->significance == NON_SIGNIFICANT )
+		{
+			me->execution = element->execution_nonsig;
+		}
+		else
+		{
+			me->execution = element->execution;
+		}
+		me->execution_args = element->execution_args;
+  }while(ret!=0 && me->running);
 
-  }while(element == NULL);
   return element;
 }
 
@@ -78,6 +70,11 @@ void* main_acc(void *args){
   while(whoami->running)
   { 
     exec_task=get_job(whoami);
+		if ( exec_task == NULL )
+		{
+			sched_yield();
+			continue;
+		}
     #ifdef ENERGY_STATS
 		likwid_markerStartRegion("Compute");
 		#endif

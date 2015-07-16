@@ -7,7 +7,7 @@
 #include <sys/time.h>
 #include <runtime.h>
 
-#define STEP 8
+#define STEP 2
 
 long this_time()
 {
@@ -23,42 +23,42 @@ typedef struct SOBEL_ARGS
 } sobel_args_t;
 
 
-double sobely1(double input[], int width, int y, int x)
+double inline sobely1(double input[], int width, int y, int x)
 {
 	double ret = -input[(y-1)*width+ x-1] +
 		input[(y+1)*width+ x-1];
 	return ret;
 }
 
-double sobely2(double input[], int width, int y, int x)
+double inline sobely2(double input[], int width, int y, int x)
 {
 	double ret = -2.0*input[(y-1)*width+ x] +
 		2.0*input[(y+1)*width+ x];
 	return ret;
 }
 
-double sobely3(double input[], int width, int y, int x)
+double inline sobely3(double input[], int width, int y, int x)
 {
 	double ret = -input[(y-1)*width+ x+1] +
 		input[(y+1)*width+ x+1];
 	return ret;
 }
 
-double sobelx1(double input[], int width, int y, int x)
+double inline sobelx1(double input[], int width, int y, int x)
 {
 	double ret = -input[(y-1)*width+ x-1] +
 		input[(y-1)*width+ x+1];
 	return ret;
 }
 
-double sobelx2(double input[], int width, int y, int x)
+double inline sobelx2(double input[], int width, int y, int x)
 {
 	double ret = -2.0*input[(y)*width+ x-1] +
 		2.0*input[(y)*width+ x+1];
 	return ret;
 }
 
-double sobelx3(double input[], int width, int y, int x)
+double inline sobelx3(double input[], int width, int y, int x)
 {
 	double ret = -input[(y+1)*width+ x-1] +
 		input[(y+1)*width+ x+1];
@@ -78,8 +78,9 @@ void sobel_task(void *_args)
 	width = args->width;
 	height = args->height;
 	row = args->row;
+	int end = row+STEP < height-1 ? row+STEP : height-1;
 
-	for ( i=row; i<row+STEP && i < height-1; ++i )
+	for ( i=row; i<end; ++i )
 	{
 		for ( j=1; j<width-1; ++j)
 		{
@@ -91,7 +92,6 @@ void sobel_task(void *_args)
 			x = sqrt(x);
 			if ( x > 255)
 				x = 255;
-
 			out[i*width+j] = x;
 		}
 	}
@@ -112,17 +112,19 @@ void sobel_task_approx(void *_args)
 	height = args->height;
 	row = args->row;
 
-	for ( i=row; i<row+STEP && i < height-1; ++i )
+	int end = row+STEP < height-1 ? row+STEP : height-1;
+
+	for ( i=row; i<end; ++i )
 	{
 		for ( j=1; j<width-1; ++j)
 		{
 			x = sobelx2(input, width, i, j);
 			y = sobely2(input, width, i, j);
-			x = x*x + y * y;
-			x = sqrt(x);
+			x = abs(x) + abs(y);
+			x *= 1.5;
 			if ( x > 255)
 				x = 255;
-
+			
 			out[i*width+j] = x;
 		}
 	}
@@ -163,12 +165,31 @@ void sobel(double *output_image, double *input_image,
 
 	for (row=1; row<height-1; row+=STEP) {
 		args.row = row;
-		task = new_task(sobel_task, &args, sizeof(args), sobel_task_approx, 50);
+		task = new_task(sobel_task, &args, sizeof(args), sobel_task_approx, 50 + (row/STEP)%10 );
 		push_task(task, "sobel");
 	}
 
 	wait_group("sobel", NULL, NULL, SYNC_RATIO, 0, 0, ratio, 0);
 }
+
+void sobel2(double *output_image, double *input_image,
+		unsigned int width, unsigned int height, double ratio )
+{
+	unsigned int p, row, column;
+	sobel_args_t args;
+	task_t *task;
+
+	args.out = output_image;
+	args.input = input_image;
+	args.width = width;
+	args.height = height;
+
+	for (row=1; row<height-1; row+=STEP) {
+		args.row = row;
+		sobel_task(&args);
+	}
+}
+
 
 double mmax(double a, double b)
 {
@@ -184,7 +205,6 @@ double mmin(double a, double b)
 		return a;
 	return b;
 }
-
 
 int main(int argc, char* argv[])
 {
@@ -242,7 +262,7 @@ int main(int argc, char* argv[])
 	PSNR = calc_psnr(output_image, sobel_image, width, height);
 	printf("PSNR,%lg\n", PSNR);
 	printf("Duration,%lg\n", (end-start)/1000.0);
-
+#if 0
 	f = fopen("sobel_output_512x512_25Hz_8bit.bw", "wb");
 	for ( row=0; row<height; ++row )
 	{
@@ -253,7 +273,7 @@ int main(int argc, char* argv[])
 		}
 	}
 	fclose(f);
-
+#endif
 	return 0;
 }
 

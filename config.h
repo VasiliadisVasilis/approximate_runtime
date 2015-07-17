@@ -2,7 +2,7 @@
 #define __CONFIG__
 
 #define NOPROTECT
-#define ENERGY_STATS 
+#define ENERGY_STATS
 
 #endif
 

@@ -1,7 +1,15 @@
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
+#include <sched.h>
+#include <pthread.h>
 #include <string.h>
 #include <execinfo.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <errno.h>
+#include <math.h>
+#include <pthread.h>
 #include "coordinator.h"
 #include "constants.h"
 #include "list.h"
@@ -10,6 +18,9 @@
 #include "debug.h"
 #include "config.h"
 #include "verbose.h"
+
+#define MSR_RAPL_POWER_UNIT		0x606
+#define MSR_PKG_ENERGY_STATUS		0x611
 
 
 pool_t *pending_tasks;
@@ -25,11 +36,7 @@ pthread_cond_t cord_condition;
 pthread_mutex_t cord_lock;
 
 
-#ifdef ENERGY_STATS
-#include <likwid.h>
-#endif
-
-
+#define msr_energy(fd) msr_read(fd, MSR_PKG_ENERGY_STATUS)
 
 //#ifdef GEMFI
 extern char __executable_start;
@@ -75,16 +82,72 @@ void check_sync(){
   return;
 }
 
+long long msr_read(int fd, int which) {
+
+  uint64_t data;
+
+  if ( pread(fd, &data, sizeof data, which) != sizeof data ) {
+    perror("rdmsr:pread");
+    pthread_exit( NULL );
+  }
+
+  return (long long)data;
+}
+
+int msr_open(int core) {
+
+  char msr_filename[1024];
+  int fd;
+
+  sprintf(msr_filename, "/dev/cpu/%d/msr", core);
+  fd = open(msr_filename, O_RDONLY);
+  if ( fd < 0 ) {
+    if ( errno == ENXIO ) {
+      fprintf(stderr, "rdmsr: No CPU %d\n", core);
+      exit(2);
+    } else if ( errno == EIO ) {
+      fprintf(stderr, "rdmsr: CPU %d doesn't support MSRs\n", core);
+      exit(3);
+    } else {
+      perror("rdmsr:open");
+      fprintf(stderr,"Trying to open %s\n",msr_filename);
+      return -1;
+    }
+  }
+
+  return fd;
+}
+
+double msr_power_units(int fd)
+{
+  long long msr_reg;
+
+	msr_reg = msr_read(fd, MSR_RAPL_POWER_UNIT);
+	return  pow(0.5,(double)(msr_reg&0xf));
+}
+
+
 void init_system(unsigned int workers)
 {
   /* Create the corresponing pulls to store the task descriptors */
   int i;
+	cpu_set_t cpu;
 	total_workers = workers;
   if(total_workers == 0){
     printf("Cannot request 0 workers\n Aborting....\n");
     exit(0);
   }
   
+	CPU_ZERO(&cpu);
+	CPU_SET(0, &cpu);
+	i = sched_setaffinity(0, sizeof(cpu), &cpu);
+
+	if ( i < 0 )
+	{
+		printf("Could not pin thread 0\n");
+		exit(1);
+	}
+	
   pending_tasks = create_pool();
 
   ready_tasks = create_pool();
@@ -95,35 +158,18 @@ void init_system(unsigned int workers)
   // if requested.
   finished_tasks = create_pool();
 
-#ifdef ENABLE_SIGNALS
-  struct sigaction act;
-  memset(&act, 0, sizeof(act));
-  act.sa_sigaction = my_action;
-  act.sa_flags = SA_SIGINFO;
-
-  // Creating a signal handler to catch fault related signals
-
-  if ( (sigaction(SIGILL,&act,NULL)<0)||
-      (sigaction(SIGFPE,&act,NULL)<0)||
-      (sigaction(SIGPIPE,&act,NULL)<0)||
-      (sigaction(SIGBUS,&act,NULL)<0)||
-      (sigaction(SIGUSR1,&act,NULL)<0)||
-      (sigaction(SIGUSR2,&act,NULL)<0)||
-      (sigaction(SIGSEGV,&act,NULL)<0)||
-      (sigaction(SIGSYS,&act,NULL)<0) ) {
-    perror("Could not assign signal handlers\n");
-    exit(0);
-  }
-#endif
-	
-	#ifdef ENERGY_STATS
-		likwid_markerInit();
-	#endif
-
   my_threads = (info*) calloc(total_workers, sizeof(info));
 
   assigned_jobs = (task_t**) calloc(total_workers, sizeof(task_t*));
   // Initialize runtime information.
+	#ifdef ENERGY_STATS
+  for( i = 0 ; i < total_workers ; i++) {
+		int fd = msr_open(i+1);
+		my_threads[i].energy = msr_energy(fd);
+		close(fd);
+	}
+	#endif
+
   for( i = 0 ; i < total_workers ; i++){
     assigned_jobs[i] = NULL;
     pthread_cond_init(&my_threads[i].cond,NULL);
@@ -141,6 +187,9 @@ void init_system(unsigned int workers)
 		
 
     pthread_create(&(my_threads[i].my_id), &(my_threads[i].attributes), init_acc, &my_threads[i]);
+		CPU_ZERO(&cpu);
+		CPU_SET(i+1, &cpu);
+		pthread_setaffinity_np(my_threads[i].my_id, sizeof(cpu_set_t), &cpu);
   } 
 
 }
@@ -148,6 +197,9 @@ void init_system(unsigned int workers)
 void shutdown_system()
 {
 	int i;
+	double power_units, energy;
+
+	energy = 0.0;
 
 	for ( i=0; i<total_workers; ++i )
 	{
@@ -157,9 +209,13 @@ void shutdown_system()
 	for (i=0; i<total_workers; ++i )
 	{
 		pthread_join(my_threads[i].my_id, NULL);
+		#ifdef ENERGY_STATS
+		int fd = msr_open(i+1);
+		power_units = msr_power_units(fd);
+		energy += power_units*(msr_energy(fd) - my_threads[i].energy);
+		close(fd);
+		#endif
 	}
 	
-	#ifdef ENERGY_STATS
-	likwid_markerClose();
-	#endif
+	printf("Energy,%lg\n", energy);
 }

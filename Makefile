@@ -5,7 +5,7 @@
 CC=gcc
 AR=ar
 # -DDEBUG -O3
-override CFLAGS+= --static -c -Wall -g -I include/ -O3
+override CFLAGS+= --static -c -Wall -g -I include/ -pthread -O3
 LDFLAGS= -lpthread -lOpenCL -ldl -lrt -fPIC -lm5
 SOURCES=list.c group.c task.c coordinator.c  accelerator.c queue.c
 INCLUDE=-I./fi

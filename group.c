@@ -16,7 +16,7 @@
 #include "include/runtime.h" 
 #include "config.h"
 
-#define BATCH_SIZE 2
+#define BATCH_SIZE 10
 
 
 extern info *my_threads;

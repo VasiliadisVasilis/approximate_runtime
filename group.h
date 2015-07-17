@@ -33,7 +33,7 @@ typedef struct groups{
   unsigned int total_non_sig_tasks;
   
   pthread_mutex_t group_lock;
-  pthread_mutex_t lock;
+  pthread_mutex_t lock, wait_exec;
   pthread_cond_t condition;
   
 	/*vasiliad: buckets of tasks, each bucket has the same significance*/

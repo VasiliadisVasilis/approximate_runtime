@@ -63,7 +63,7 @@ typedef struct info_t{
   unsigned int reliable;
   
 	unsigned int running;
-	long long energy;
+	long long energy, dram_energy;
 	queue_t *work_queue;
 	
 }info;

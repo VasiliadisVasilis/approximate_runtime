@@ -21,6 +21,7 @@
 
 #define MSR_RAPL_POWER_UNIT		0x606
 #define MSR_PKG_ENERGY_STATUS		0x611
+#define MSR_DRAM_ENERGY_STATUS		0x619
 
 
 pool_t *pending_tasks;
@@ -118,14 +119,24 @@ int msr_open(int core) {
   return fd;
 }
 
-double msr_power_units(int fd)
+double msr_energy_units(int fd)
 {
   long long msr_reg;
 
 	msr_reg = msr_read(fd, MSR_RAPL_POWER_UNIT);
-	return  pow(0.5,(double)(msr_reg&0xf));
+	return  pow(0.5,(double)((msr_reg>>8)&0x1f));
 }
 
+double msr_dram_energy_units(int fd)
+{
+	/*vasiliad:DRAM energy not implemented*/
+	return 0.0;
+}
+
+double msr_dram_energy(int fd)
+{
+	return msr_read(fd,MSR_DRAM_ENERGY_STATUS);
+}
 
 void init_system(unsigned int workers)
 {
@@ -166,6 +177,7 @@ void init_system(unsigned int workers)
   for( i = 0 ; i < total_workers ; i++) {
 		int fd = msr_open(i+1);
 		my_threads[i].energy = msr_energy(fd);
+		my_threads[i].dram_energy = msr_dram_energy(fd);
 		close(fd);
 	}
 	#endif
@@ -197,7 +209,7 @@ void init_system(unsigned int workers)
 void shutdown_system()
 {
 	int i;
-	double power_units, energy;
+	double cpu_units, energy;
 
 	energy = 0.0;
 
@@ -211,11 +223,12 @@ void shutdown_system()
 		pthread_join(my_threads[i].my_id, NULL);
 		#ifdef ENERGY_STATS
 		int fd = msr_open(i+1);
-		power_units = msr_power_units(fd);
-		energy += power_units*(msr_energy(fd) - my_threads[i].energy);
+		cpu_units = msr_energy_units(fd);
+		energy += cpu_units*(msr_energy(fd) - my_threads[i].energy);
+		/* energy_dram += dram_units*(msr_dram_energy(fd) - my_threads[i].dram_energy); */
 		close(fd);
 		#endif
 	}
 	
-	printf("Energy,%lg\n", energy);
+	printf("Energy,%lg\n", energy/(double)(total_workers));
 }

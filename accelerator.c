@@ -64,10 +64,7 @@ void* main_acc(void *args){
   { 
     exec_task=get_job(whoami);
 		if ( exec_task == NULL )
-		{
-			sched_yield();
-			continue;
-		}
+			break;
     if ( whoami->execution )
       whoami->execution(whoami->execution_args);
 

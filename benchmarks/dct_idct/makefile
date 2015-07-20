@@ -23,4 +23,4 @@ image:
 	convert -depth 8 -size 512x512 GRAY:decoded_image.raw decoded_image.jpg
 
 clean:
-	rm -f *.o *~ dct_idctimage: decoded_image.raw
+	rm -f *.o *~ dct_idct

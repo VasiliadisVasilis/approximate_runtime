@@ -2,7 +2,7 @@
 #define __GROUP_T__
 
 #include <pthread.h>
-#include "task.h"
+#include "include/task.h"
 
 #define SYNC_TIME 1
 #define SYNC_RATIO 2

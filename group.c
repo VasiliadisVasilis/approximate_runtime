@@ -145,6 +145,12 @@ int wait_group(char *group, int (*func) (void *),  void * args , unsigned int ty
 					&& my_group->pending_q[sig][i]->significance != NON_SIGNIFICANT )
 				my_group->pending_q[sig][i]->significance = ( current++ < goal ) ? 
 					SIGNIFICANT : NON_SIGNIFICANT;
+			if ( my_group->pending_q[sig][i]->significance == NON_SIGNIFICANT 
+				&& my_group->pending_q[sig][i]->execution_nonsig == NULL )
+				{
+					continue;
+				}
+
 			queue_make_element(&e, my_group->pending_q[sig][i]);
 			consequtive++;
 			if ( consequtive%BATCH_SIZE == 0 )

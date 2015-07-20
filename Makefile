@@ -6,8 +6,8 @@ CC=gcc
 AR=ar
 # -DDEBUG -O3
 override CFLAGS+= --static -c -Wall -g -I include/ -pthread -O3
-LDFLAGS= -lpthread -lOpenCL -ldl -lrt -fPIC -lm5
-SOURCES=list.c group.c task.c coordinator.c  accelerator.c queue.c
+LDFLAGS= -lpthread -ldl -lrt
+SOURCES=list.c queue.c group.c task.c coordinator.c  accelerator.c
 INCLUDE=-I./fi
 LIB=-L./fi
 OBJECTS=$(SOURCES:.c=.o)

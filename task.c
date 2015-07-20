@@ -4,9 +4,10 @@
 #include <pthread.h>
 #include <stdarg.h>
 #include <string.h>
-#include "task.h"
+#include "group.h"
+#include "include/task.h"
+#include "constants.h"
 #include "debug.h"
-#include "include/runtime.h"
 
 extern pool_t *pending_tasks;
 extern pool_t *ready_tasks;

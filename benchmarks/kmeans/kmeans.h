@@ -38,17 +38,19 @@
 /******************************************************************************/
 #ifndef _H_FUZZY_KMEANS
 #define _H_FUZZY_KMEANS
-
 #ifndef FLT_MAX
 #define FLT_MAX 3.40282347e+38
 #endif
 
+// typedef dco::ia1s::type TYPE;
+typedef double TYPE;
+
 /* cluster.c */
-int    *cluster(int, int, float**, int, float, float***, int);
+int    *cluster(int, int, TYPE**, int, int, TYPE***, int);
 
 /* kmeans_clustering.c */
-float **kmeans_clustering(float**, int, int, int, float, int*, int);
-float   euclid_dist_2        (float*, float*, int);
-int     find_nearest_point   (float* , int, int, float**, int);
+TYPE **kmeans_clustering(TYPE**, int, int, int, int, int*, int);
+TYPE euclid_dist_2        (TYPE*, TYPE*, int);
+int     find_nearest_point   (TYPE* , int, int, TYPE**, int);
 
 #endif

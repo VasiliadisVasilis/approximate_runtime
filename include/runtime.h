@@ -10,6 +10,7 @@
 #define SYNC_RATIO 2
 #define SYNC_ALL 4
 
+typedef void (*TASK) (void*);
 
 
 task_t* new_task(void (*exec)(void *), void *args, unsigned int size_args ,void (*exec_nonsig)(void *),

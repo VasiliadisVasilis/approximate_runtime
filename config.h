@@ -3,6 +3,7 @@
 
 #define NOPROTECT
 #define ENERGY_STATS
+#define PIN_THREADS
 
 #endif
 

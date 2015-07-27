@@ -18,6 +18,12 @@
 #include "debug.h"
 #include "config.h"
 #include "verbose.h"
+#include <sys/time.h>
+
+#ifdef ENERGY_STATS
+long long energy[2];
+#endif
+
 
 #define MSR_RAPL_POWER_UNIT		0x606
 #define MSR_PKG_ENERGY_STATUS		0x611
@@ -36,6 +42,8 @@ task_t **assigned_jobs;
 pthread_cond_t cord_condition;
 pthread_mutex_t cord_lock;
 
+long start;
+
 
 #define msr_energy(fd) msr_read(fd, MSR_PKG_ENERGY_STATUS)
 
@@ -47,6 +55,13 @@ extern char __etext;
 int explicit_sync(void *args);
 void* main_acc(void *args);
 int finished_task(task_t* task);
+
+long my_time()
+{
+  struct timeval tv;
+  gettimeofday(&tv, NULL);
+  return tv.tv_sec*1000000+tv.tv_usec;
+}
 
 void print_trace(int nsig)
 {
@@ -142,13 +157,18 @@ void init_system(unsigned int workers)
 {
   /* Create the corresponing pulls to store the task descriptors */
   int i;
+	#ifdef PIN_THREADS
 	cpu_set_t cpu;
+	#endif
 	total_workers = workers;
   if(total_workers == 0){
     printf("Cannot request 0 workers\n Aborting....\n");
     exit(0);
   }
   
+	start = my_time();
+
+	#ifdef PIN_THREADS
 	CPU_ZERO(&cpu);
 	CPU_SET(0, &cpu);
 	i = sched_setaffinity(0, sizeof(cpu), &cpu);
@@ -158,7 +178,7 @@ void init_system(unsigned int workers)
 		printf("Could not pin thread 0\n");
 		exit(1);
 	}
-	
+	#endif	
   pending_tasks = create_pool();
 
   ready_tasks = create_pool();
@@ -174,10 +194,9 @@ void init_system(unsigned int workers)
   assigned_jobs = (task_t**) calloc(total_workers, sizeof(task_t*));
   // Initialize runtime information.
 	#ifdef ENERGY_STATS
-  for( i = 0 ; i < total_workers ; i++) {
-		int fd = msr_open(i+1);
-		my_threads[i].energy = msr_energy(fd);
-		my_threads[i].dram_energy = msr_dram_energy(fd);
+  for( i = 0 ; i < total_workers && i<2; i++) {
+		int fd = msr_open(i);
+		energy[i] = msr_energy(fd);
 		close(fd);
 	}
 	#endif
@@ -199,9 +218,11 @@ void init_system(unsigned int workers)
 		
 
     pthread_create(&(my_threads[i].my_id), &(my_threads[i].attributes), init_acc, &my_threads[i]);
+#ifdef PIN_THREADS
 		CPU_ZERO(&cpu);
 		CPU_SET(i+1, &cpu);
 		pthread_setaffinity_np(my_threads[i].my_id, sizeof(cpu_set_t), &cpu);
+#endif
   } 
 
 }
@@ -209,9 +230,9 @@ void init_system(unsigned int workers)
 void shutdown_system()
 {
 	int i;
-	double cpu_units, energy;
+	double cpu_units, total_energy;
 
-	energy = 0.0;
+	total_energy = 0.0;
 
 	for ( i=0; i<total_workers; ++i )
 	{
@@ -221,14 +242,21 @@ void shutdown_system()
 	for (i=0; i<total_workers; ++i )
 	{
 		pthread_join(my_threads[i].my_id, NULL);
-		#ifdef ENERGY_STATS
-		int fd = msr_open(i+1);
-		cpu_units = msr_energy_units(fd);
-		energy += cpu_units*(msr_energy(fd) - my_threads[i].energy);
-		/* energy_dram += dram_units*(msr_dram_energy(fd) - my_threads[i].dram_energy); */
-		close(fd);
-		#endif
 	}
+
+#ifdef ENERGY_STATS
+	for (i=0; i<total_workers && i < 2; ++i )
+	{
+		int fd = msr_open(i);
+		cpu_units = msr_energy_units(fd);
+		total_energy += cpu_units*(msr_energy(fd) - energy[i]);
+		close(fd);
+	}
+	if ( total_workers > 1)
+		total_energy/=2.0;
+#endif
+
 	
-	printf("Energy,%lg\n", energy/(double)(total_workers));
+	printf("Energy=%lg\n", total_energy);
+	printf("Duration=%lg\n", (my_time()-start)/1000.0);
 }

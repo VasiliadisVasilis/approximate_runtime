@@ -6,7 +6,7 @@
 #include <time.h>
 #include <ucontext.h>
 #include <errno.h>
-#include <sys/time.h>
+
 #include "list.h"
 #include "group.h"
 #include "coordinator.h"
@@ -16,7 +16,7 @@
 #include "include/runtime.h" 
 #include "config.h"
 
-#define BATCH_SIZE 10
+#define BATCH_SIZE 1
 
 
 extern info *my_threads;
@@ -25,12 +25,6 @@ extern unsigned int total_workers;
 extern info* my_threads;
 
 
-long my_time()
-{
-  struct timeval tv;
-  gettimeofday(&tv, NULL);
-  return tv.tv_sec*1000000+tv.tv_usec;
-}
 
 int whoami(){
   unsigned int i;

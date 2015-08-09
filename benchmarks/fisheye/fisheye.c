@@ -17,6 +17,7 @@
 #include <assert.h>
 #include <time.h>
 #include <pthread.h>
+#include "fast_approx.h"
 // #include "cordic.h" 
 // #include "sbtm.h" 
 
@@ -150,7 +151,8 @@ void parse_args(int argc, char **argv, program_args_t *program_args) {
       }
       unsigned char byte;
       for(i=0;i<54;i++) byte = getc(f); // Throw header
-      size_t read_bytes = fread(program_args->frame, sizeof(unsigned char), input_size*3, f);
+      size_t read_bytes = fread(program_args->frame, sizeof(unsigned char),
+					input_size*3, f);
       if(read_bytes != input_size*3){
         printf("Exiting 22 \n");
         exit(0);
@@ -272,18 +274,24 @@ void xtd_current_frame(program_params_t *params)  {
   for (c = 1; c < w1-1; c++) {
     loc1 = c*3;
     loc2 = (c-1)*3;
-    xframe[loc1+0] = (unsigned char) (3*cframe[loc2+0] -  3*cframe[loc2+3*w2+0] + cframe[loc2+3*2*w2+0]);
-    xframe[loc1+1] = (unsigned char) (3*cframe[loc2+1] -  3*cframe[loc2+3*w2+1] + cframe[loc2+3*2*w2+1]);
-    xframe[loc1+2] = (unsigned char) (3*cframe[loc2+2] - 3*cframe[loc2+3*w2+2] +  cframe[loc2+3*2*w2+2]);
+    xframe[loc1+0] = (unsigned char) (3*cframe[loc2+0] -  3*cframe[loc2+3*w2+0] 
+				+ cframe[loc2+3*2*w2+0]);
+    xframe[loc1+1] = (unsigned char) (3*cframe[loc2+1] -  3*cframe[loc2+3*w2+1] 
+				+ cframe[loc2+3*2*w2+1]);
+    xframe[loc1+2] = (unsigned char) (3*cframe[loc2+2] - 3*cframe[loc2+3*w2+2] 
+				+  cframe[loc2+3*2*w2+2]);
   }
 
   /* Last row, but not the two edges */
   for (c = 1; c < w1-1; c++) {
     loc1 = ((h1-1)*w1 + c)*3;
     loc2 = ((h2-1)*w2 + c-1)*3;
-    xframe[loc1+0] = (unsigned char) (3*cframe[loc2+0] - 3*cframe[loc2-3*w2+0] +  cframe[loc2-3*2*w2+0]);
-    xframe[loc1+1] = (unsigned char) (3*cframe[loc2+1] - 3*cframe[loc2-3*w2+1] + cframe[loc2-3*2*w2+1]);
-    xframe[loc1+2] = (unsigned char) (3*cframe[loc2+2] - 3*cframe[loc2-3*w2+2] + cframe[loc2-3*2*w2+2]);
+    xframe[loc1+0] = (unsigned char) (3*cframe[loc2+0] - 3*cframe[loc2-3*w2+0] 
+				+  cframe[loc2-3*2*w2+0]);
+    xframe[loc1+1] = (unsigned char) (3*cframe[loc2+1] - 3*cframe[loc2-3*w2+1] 
+				+ cframe[loc2-3*2*w2+1]);
+    xframe[loc1+2] = (unsigned char) (3*cframe[loc2+2] - 3*cframe[loc2-3*w2+2] 
+				+ cframe[loc2-3*2*w2+2]);
 
   }
 
@@ -352,7 +360,8 @@ void forward_mapping(program_params_t *params) {
   ep1 = params->ep[1]; 
   Dd = sqrt((cp0-ep0)*(cp0-ep0) + (cp1-ep1)*(cp1-ep1));
 
-  Ru = params->k_inv[4] + Dd*(params->k_inv[3] + Dd*(params->k_inv[2] + Dd*(params->k_inv[1] + Dd*(params->k_inv[0])))); 
+  Ru = params->k_inv[4] + Dd*(params->k_inv[3] + Dd*(params->k_inv[2] 
+		+ Dd*(params->k_inv[1] + Dd*(params->k_inv[0])))); 
 
   Du = tan(Ru);
   rs0 = ((cp0-ep0)/Dd)*Du;
@@ -383,7 +392,7 @@ void forward_mapping(program_params_t *params) {
   ttt1 = cross1/norm;
   ttt2 = cross2/norm;
 
-  fov = (params->phi/180)*PI;
+  fov = (params->phi/180)*M_PI;
   step_size = (tan(fov/2))/OUT_HEIGHT;
 
   params->rot_mat[0][0] = step_size*tt0;
@@ -404,6 +413,35 @@ void forward_mapping(program_params_t *params) {
 /*             the Xp[3] perspective coordinates                        */
 /*      Output: the coordinates array UV[2]                             */ 
 /*======================================================================*/
+
+void inverse_mapping_approx(program_params_t *params, int j, int i, double UV[2]) {
+  double Xp[3];
+  double R2, Du, Ru, pol;
+  double tempVal, sqrtR2, normVal, normFactor;
+  int idx0, idx1, c01, c02;
+  unsigned int intDu;
+  unsigned long mask1, mask2, mask3;
+  int      inverted, negative;
+
+  Xp[0] = params->rot_mat[0][0] * i + params->rot_mat[0][1] * j + params->rot_mat[0][2];
+  Xp[1] = params->rot_mat[1][0] * i + params->rot_mat[1][1] * j + params->rot_mat[1][2];
+  Xp[2] = params->rot_mat[2][0] * i + params->rot_mat[2][1] * j+ params->rot_mat[2][2];
+
+  R2 = fasterpow2(Xp[0]) + fasterpow2(Xp[1]);
+
+  Du = fastsqrt(R2)/Xp[2];
+
+  Ru = atan(Du);
+
+  pol = params->k[4] + Ru*(params->k[3] + Ru*(params->k[2] 
+			+ Ru*(params->k[1] + Ru*params->k[0]))); 
+
+  UV[0] = (Xp[0] / fastsqrt(R2)) * pol + params->ep[0];    
+  UV[1] = (Xp[1] / fastsqrt(R2)) * pol + params->ep[1];   
+  UV[0] -= 1.0;
+  UV[1] -= 1.0;
+}
+
 void inverse_mapping(program_params_t *params, int j, int i, double UV[2]) {
   double Xp[3];
   double R2, Du, Ru, pol;
@@ -423,7 +461,8 @@ void inverse_mapping(program_params_t *params, int j, int i, double UV[2]) {
 
   Ru = atan(Du);
 
-  pol = params->k[4] + Ru*(params->k[3] + Ru*(params->k[2] + Ru*(params->k[1] + Ru*params->k[0]))); 
+  pol = params->k[4] + Ru*(params->k[3] + Ru*(params->k[2] 
+			+ Ru*(params->k[1] + Ru*params->k[0]))); 
 
   UV[0] = (Xp[0] / sqrt(R2)) * pol + params->ep[0];    
   UV[1] = (Xp[1] / sqrt(R2)) * pol + params->ep[1];   
@@ -441,7 +480,8 @@ void inverse_mapping(program_params_t *params, int j, int i, double UV[2]) {
 /*             the color channel(Blue=0, Green=1, Red=2)                */
 /*      Output: the interpolated value at location UV                   */
 /*======================================================================*/
-unsigned char bicubic_interpolation(program_params_t *params, double UV[2], unsigned int channel) {
+unsigned char bicubic_interpolation(program_params_t *params, 
+		double UV[2], unsigned int channel) {
   unsigned char *cframe;
   unsigned char *xframe;
   long     double u, v, s, t;
@@ -514,7 +554,8 @@ unsigned char bicubic_interpolation(program_params_t *params, double UV[2], unsi
   temp2 += (double) (c[1][0]*interp_row_val[0] + c[1][3]*interp_row_val[3]);
   temp3 += (double) (c[2][0]*interp_row_val[0] + c[2][3]*interp_row_val[3]);
   temp4 += (double) (c[3][0]*interp_row_val[0] + c[3][3]*interp_row_val[3]);
-  temp = (double) (temp1*interp_col_val[0] + temp2*interp_col_val[1] +temp3*interp_col_val[2] + temp4*interp_col_val[3]); 
+  temp = (double) (temp1*interp_col_val[0] + temp2*interp_col_val[1] 
+				+ temp3*interp_col_val[2] + temp4*interp_col_val[3]); 
 
 
   val = (unsigned char) clip(temp, 0, 255);
@@ -522,8 +563,10 @@ unsigned char bicubic_interpolation(program_params_t *params, double UV[2], unsi
 }
 
 
-unsigned char bicubic_interpolation_approx(program_params_t *params, double UV[2], unsigned int channel) {
-  unsigned char *cframe;
+unsigned char bicubic_interpolation_approx(program_params_t *params,
+			double UV[2], unsigned int channel) 
+{
+	unsigned char *cframe;
   unsigned char *xframe;
   long     double u, v, s, t;
   int      u_tl, v_tl, loc_tl, loc;
@@ -552,9 +595,45 @@ unsigned char bicubic_interpolation_approx(program_params_t *params, double UV[2
   v_tl = floor(v);
 
   /* loc_tl refers to the extended frame */
-  loc_tl =  ((v_tl+1)*wx + u_tl+1)*3 + channel; /* loc_tl is always within the frame boundaries */
+  loc_tl =  ((v_tl+1)*wx + u_tl+1)*3; /* loc_tl is always within the frame boundaries */
   /* Find the interpolation coefficients */
-  return xframe[loc_tl];
+  c[1][0] = xframe[loc_tl - 3 + channel];
+  c[1][1] = xframe[loc_tl + channel];
+  c[1][2] = xframe[loc_tl + 3 + channel];
+  c[1][3] = xframe[loc_tl + 3*2+ channel];
+  c[2][0] = xframe[loc_tl + 3*wx - 3 + channel];
+  c[2][1] = xframe[loc_tl + 3*wx + channel];
+  c[2][2] = xframe[loc_tl + 3*wx + 3 + channel];
+  c[2][3] = xframe[loc_tl + 3*wx + 3*2+ channel];
+  /* The interpolation */
+  s = u - (double) u_tl; 
+  t = v - (double) v_tl; 
+
+  /* First, interpolate using the pixels closest to the input pixel */
+    /* First, interpolate using the pixels closest to the input pixel */
+  interp_row_val[1] = ((3*s-5)*s*s+2)/2;
+  interp_row_val[2] = (((4-3*s)*s+1)*s)/2;
+
+  interp_col_val[1] = ((3*t-5)*t*t+2)/2;
+  interp_col_val[2] = (((4-3*t)*t+1)*t)/2;
+
+  temp2 = (double) (c[1][1]*interp_row_val[1] + c[1][2]*interp_row_val[2]);
+  temp3 = (double) (c[2][1]*interp_row_val[1] + c[2][2]*interp_row_val[2]);
+
+  interp_row_val[0] = (((2-s)*s-1)*s)/2;
+  interp_row_val[3] = ((s-1)*s*s)/2;
+  interp_col_val[0] = (((2-t)*t-1)*t)/2;
+  interp_col_val[3] = ((t-1)*t*t)/2;
+
+  temp2 += (double) (c[1][0]*interp_row_val[0] + c[1][3]*interp_row_val[3]);
+  temp3 += (double) (c[2][0]*interp_row_val[0] + c[2][3]*interp_row_val[3]);
+
+  temp = (double) (temp2*interp_col_val[0] + temp2*interp_col_val[1] 
+				+ temp3*interp_col_val[2] + temp3*interp_col_val[3]); 
+
+
+  val = (unsigned char) clip(temp, 0, 255);
+  return (unsigned char) val;
 }
 
 /*======================================================================*/
@@ -579,11 +658,7 @@ void FishEye_Beh(void *args) {
   double UV[2];      
   unsigned char valb, valg, valr;
   int step = my_work->step;
-  struct timespec now;
   my_work->approx = 2;
-  clock_gettime(CLOCK_MONOTONIC_RAW, &now);
-  my_work->start_time = now.tv_nsec + now.tv_sec * 1000000000;
-  forward_mapping(params);  
 
   for (j = my_work->starty; j< my_work->endy &&  j < OUT_HEIGHT ; j++){
     line_loc = (( j + OUT_HEIGHT ) * (2*OUT_WIDTH) )*3;
@@ -610,11 +685,7 @@ void FishEye_Beh_approx(void *args ) {
   int    k,j,i,line_loc , loc, loc_left,loc_right;
   int step= my_work->step;
   my_work->approx = 2;
-  struct timespec now;
-  clock_gettime(CLOCK_MONOTONIC_RAW, &now);
-  my_work->start_time = now.tv_nsec + now.tv_sec * 1000000000;
 //  xtd_current_frame(params);
-  forward_mapping(params);  
   for (j = my_work->starty; j< my_work->endy &&  j < OUT_HEIGHT ; j++){
     line_loc = (( j + OUT_HEIGHT ) * (2*OUT_WIDTH) )*3;
     for (i = my_work->startx; i < my_work->endx && i < OUT_WIDTH ; i++)  {
@@ -656,7 +727,7 @@ int comp( const void* a, const void * b){
 /* Y:   the row coordinate of the center of the ROI                   */
 /* PHI: the field of view of the ROI given in angles PHI:0..180       */
 /*      The FoV determines the size of the ROI. The actual FoV is     */
-/*      PHI/(180*PI)                                                  */
+/*      PHI/(180*M_PI)                                                  */
 /*====================================================================*/
 int main(int argc, char **argv) {
   int p, key;
@@ -666,7 +737,6 @@ int main(int argc, char **argv) {
   program_args_t *args;
   program_params_t *params;
   int i,j,k,l;
-  struct timespec  tv1, tv2;
   tw *threads;
   args = (program_args_t *) malloc(sizeof(program_args_t));
   params = (program_params_t *) malloc(sizeof(program_params_t));
@@ -708,7 +778,6 @@ int main(int argc, char **argv) {
       threads[i*num_blocksx+j].step = 1;
     }
 
-  clock_gettime(CLOCK_MONOTONIC_RAW, &tv1);
 
   if (params->num_pics == 0){
     printf("You should define at least on picture\n");
@@ -719,6 +788,7 @@ int main(int argc, char **argv) {
   init_system(num_threads);
 	char group[1024];
 	task_t *task;
+  forward_mapping(params);  
 
   for ( l = 0; l < params->num_pics; l++){
 		sprintf(group, "pic%d", l);
@@ -740,9 +810,6 @@ int main(int argc, char **argv) {
      if ( threads[i*num_blocksx+j].approx != 2 )
        printf("I have not been executed\n");
 	#endif
-  // qsort(threads,num_blocksx*num_blocksy*5,sizeof(tw),comp);
-  // for( i = 0 ; i< num_blocksx*num_blocksy*5; i++)
-  //   printf("%d %d approx %d \tsignificance %d\t \n",threads[i].b_idy,threads[i].b_idx,threads[i].approx, threads[i].sign);
   BmpHeader head = {0, 0, 54, 40, 0, 0, 1, 24, 0, 0}; /* BMP file header */  
   FILE *fp = fopen("out.bmp","wb");
   fputc('B',fp);   fputc('M',fp);
@@ -751,7 +818,8 @@ int main(int argc, char **argv) {
   head.sizeImage = params->xtd_output_frame_y_size *  params->xtd_output_frame_x_size *3;
   head.sizeFile = head.sizeImage + head.offbits;
   fwrite(&head, sizeof head, 1, fp); 
-  if (fwrite(params->xtd_output_frame[params->num_pics-1], 1, head.sizeImage, fp) != head.sizeImage) {
+  if (fwrite(params->xtd_output_frame[params->num_pics-1], 1, head.sizeImage, fp) 
+		!= head.sizeImage) {
     fclose(fp);
     printf("Error when writing file\n");
     return 1;  

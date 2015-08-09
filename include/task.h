@@ -3,6 +3,10 @@
 #include "list.h"
 #include "group.h"
 
+#ifdef __cplusplus
+extern "C"{
+#endif 
+
 // typedef struct tasks;
 
 typedef struct dependence{
@@ -71,4 +75,8 @@ int push_task(task_t* task, char *group);
 int finished_task(task_t* task);
 int move_q(task_t *task);
 int del_non_signf(void *args1, void *args2);
+
+#ifdef __cplusplus
+}
+#endif 
 #endif

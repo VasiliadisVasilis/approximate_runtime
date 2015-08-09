@@ -5,7 +5,6 @@
 
 #define IN_WIDTH   800
 #define IN_HEIGHT  600
-#define PI         3.14159265
 
 int OUT_WIDTH=80;	
 int OUT_HEIGHT=60;

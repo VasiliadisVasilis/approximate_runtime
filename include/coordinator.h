@@ -1,6 +1,10 @@
 #ifndef __COORDINATOR__
 #define __COORDINATOR__
 
+#ifdef __cplusplus
+extern "C"{
+#endif 
+
 #include <pthread.h>
 #include <time.h>
 #include <ucontext.h>
@@ -62,5 +66,9 @@ typedef struct info_t{
 }info;
 
 void init_system(unsigned int reliable_workers , unsigned int nonrel_workers);
+
+#ifdef __cplusplus
+}
+#endif 
 
 #endif 

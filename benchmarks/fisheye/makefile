@@ -12,7 +12,7 @@ LFLAGS = -L$(LIKWID_BASE)/ -L../../ -L../../fi
 
 LIBS += -lm -lrt -lrtsrel  -llikwid  -lpthread 
 
-all=fisheye psnr
+all:fisheye psnr
 
 psnr: psnr.c
 	$(CC) -o psnr -g -O3 psnr.c -lm 

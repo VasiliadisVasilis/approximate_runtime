@@ -31,8 +31,13 @@ int main(int argc, char *argv[])
 	}
 	MSE = 0.0;
 	for ( i = 0 ; i < SIZE(x,y) ; i++){
-		fread(&c,sizeof(char),1,corr);
-		fread(&p,sizeof(char),1,perf);
+		int ret = fread(&c,sizeof(char),1,corr);
+		ret += fread(&p,sizeof(char),1,perf);
+		if ( ret != 2 )
+		{
+			printf("Failed to read 2 chars\n");
+			return 1;
+		}
 		t = (int)c - (int)p;
 		if ( t > 256 )
 		  exit(0);

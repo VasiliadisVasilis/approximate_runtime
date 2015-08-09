@@ -2,6 +2,10 @@
 #define __SGNF_RUNTIME__
 #include "constants.h"
 
+#ifdef __cplusplus
+extern "C"{
+#endif 
+
 #ifndef __TASK__
 #define task_t void*
 #endif
@@ -25,4 +29,10 @@ void init_system(unsigned int workers);
 void shutdown_system();
 void stop_exec();
 long my_time();
+
+#ifdef __cplusplus
+}
+#endif 
+
+
 #endif

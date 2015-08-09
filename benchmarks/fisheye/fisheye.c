@@ -141,17 +141,28 @@ void parse_args(int argc, char **argv, program_args_t *program_args) {
       }
     }
     else {
-      input_size=WIDTH*HEIGHT;
       filename = argv[argNum];
       FILE *f = fopen(filename,"rb");
+
+      unsigned char byte;
+      for(i=0;i<2;i++) byte = getc(f); // Throw header
+      BmpHeader head;
+
+      fread(&head, sizeof(head), 1, f);
+
+      WIDTH = head.width;
+      HEIGHT = head.height;
+
+      program_args->x = WIDTH/2;
+      program_args->y = HEIGHT/2;
+
+      input_size=WIDTH*HEIGHT;
       program_args->frame = (unsigned char *) malloc (sizeof(unsigned char)*input_size*3);
       if(!(program_args->frame)){
         printf("Exiting 1 \n");
         exit(0);
       }
-      unsigned char byte;
-      for(i=0;i<54;i++) byte = getc(f); // Throw header
-      size_t read_bytes = fread(program_args->frame, sizeof(unsigned char),
+            size_t read_bytes = fread(program_args->frame, sizeof(unsigned char),
 					input_size*3, f);
       if(read_bytes != input_size*3){
         printf("Exiting 22 \n");

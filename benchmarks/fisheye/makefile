@@ -10,7 +10,7 @@ OBJ_BENCH += $(LIKWID_BASE)/GCC/clcopy.o  $(LIKWID_BASE)/GCC/clload.o  $(LIKWID_
 
 LFLAGS = -L$(LIKWID_BASE)/ -L../../ -L../../fi
 
-LIBS += -lm -lrt -lrtsrel  -llikwid  -lpthread 
+LIBS += -lm -lrt -lrtsrel  -lpthread 
 
 all:fisheye psnr
 

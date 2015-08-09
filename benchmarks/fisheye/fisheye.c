@@ -446,9 +446,10 @@ void inverse_mapping_approx(program_params_t *params, int j, int i, double UV[2]
 
   pol = params->k[4] + Ru*(params->k[3] + Ru*(params->k[2] 
 			+ Ru*(params->k[1] + Ru*params->k[0]))); 
-
-  UV[0] = (Xp[0] / fastsqrt(R2)) * pol + params->ep[0];    
-  UV[1] = (Xp[1] / fastsqrt(R2)) * pol + params->ep[1];   
+  
+  R2 = fastsqrt(R2);
+  UV[0] = (Xp[0] / R2) * pol + params->ep[0];    
+  UV[1] = (Xp[1] / R2) * pol + params->ep[1];   
   UV[0] -= 1.0;
   UV[1] -= 1.0;
 }
@@ -608,39 +609,26 @@ unsigned char bicubic_interpolation_approx(program_params_t *params,
   /* loc_tl refers to the extended frame */
   loc_tl =  ((v_tl+1)*wx + u_tl+1)*3; /* loc_tl is always within the frame boundaries */
   /* Find the interpolation coefficients */
-  c[1][0] = xframe[loc_tl - 3 + channel];
   c[1][1] = xframe[loc_tl + channel];
   c[1][2] = xframe[loc_tl + 3 + channel];
-  c[1][3] = xframe[loc_tl + 3*2+ channel];
-  c[2][0] = xframe[loc_tl + 3*wx - 3 + channel];
   c[2][1] = xframe[loc_tl + 3*wx + channel];
   c[2][2] = xframe[loc_tl + 3*wx + 3 + channel];
-  c[2][3] = xframe[loc_tl + 3*wx + 3*2+ channel];
   /* The interpolation */
   s = u - (double) u_tl; 
   t = v - (double) v_tl; 
 
   /* First, interpolate using the pixels closest to the input pixel */
     /* First, interpolate using the pixels closest to the input pixel */
-  interp_row_val[1] = ((3*s-5)*s*s+2)/2;
-  interp_row_val[2] = (((4-3*s)*s+1)*s)/2;
+  interp_row_val[1] = ((3*s-5)*s*s+2 + ((2-s)*s-1)*s)/2;
+  interp_row_val[2] = (((4-3*s)*s+1)*s + (s-1)*s*s)/2;
 
-  interp_col_val[1] = ((3*t-5)*t*t+2)/2;
-  interp_col_val[2] = (((4-3*t)*t+1)*t)/2;
+  interp_col_val[1] = ((3*t-5)*t*t+2 +  ((2-t)*t-1)*t)/2;
+  interp_col_val[2] = (((4-3*t)*t+1)*t + (t-1)*t*t)/2;
 
   temp2 = (double) (c[1][1]*interp_row_val[1] + c[1][2]*interp_row_val[2]);
   temp3 = (double) (c[2][1]*interp_row_val[1] + c[2][2]*interp_row_val[2]);
 
-  interp_row_val[0] = (((2-s)*s-1)*s)/2;
-  interp_row_val[3] = ((s-1)*s*s)/2;
-  interp_col_val[0] = (((2-t)*t-1)*t)/2;
-  interp_col_val[3] = ((t-1)*t*t)/2;
-
-  temp2 += (double) (c[1][0]*interp_row_val[0] + c[1][3]*interp_row_val[3]);
-  temp3 += (double) (c[2][0]*interp_row_val[0] + c[2][3]*interp_row_val[3]);
-
-  temp = (double) (temp2*interp_col_val[0] + temp2*interp_col_val[1] 
-				+ temp3*interp_col_val[2] + temp3*interp_col_val[3]); 
+  temp = (double) (temp2*interp_col_val[1]  + temp3*interp_col_val[2]); 
 
 
   val = (unsigned char) clip(temp, 0, 255);

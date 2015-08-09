@@ -578,7 +578,6 @@ unsigned char bicubic_interpolation(program_params_t *params,
 unsigned char bicubic_interpolation_approx(program_params_t *params,
 			double UV[2], unsigned int channel) 
 {
-	unsigned char *cframe;
   unsigned char *xframe;
   long     double u, v, s, t;
   int      u_tl, v_tl, loc_tl, loc;
@@ -591,7 +590,6 @@ unsigned char bicubic_interpolation_approx(program_params_t *params,
   unsigned char val;
 
   xframe = params->xtd_current_frame;
-  cframe = params->current_frame;
   hc = params->current_frame_y_size;
   wc = params->current_frame_x_size;
   hx = params->xtd_current_frame_y_size;
@@ -629,7 +627,6 @@ unsigned char bicubic_interpolation_approx(program_params_t *params,
   temp3 = (double) (c[2][1]*interp_row_val[1] + c[2][2]*interp_row_val[2]);
 
   temp = (double) (temp2*interp_col_val[1]  + temp3*interp_col_val[2]); 
-
 
   val = (unsigned char) clip(temp, 0, 255);
   return (unsigned char) val;

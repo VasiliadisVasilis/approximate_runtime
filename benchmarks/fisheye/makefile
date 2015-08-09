@@ -1,4 +1,4 @@
-OPT= -O3 # -DDEBUG
+OPT= -O3 -g
 #use CFLAGS = -DGEMFI to enable gemfi faults and -DSANITY to enable trc
 
 LIKWID_BASE=/opt/likwid_v3.1

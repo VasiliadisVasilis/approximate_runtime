@@ -1,0 +1,5 @@
+boundbox 300.0
+dt 1e-3
+particles 10
+dur 1
+

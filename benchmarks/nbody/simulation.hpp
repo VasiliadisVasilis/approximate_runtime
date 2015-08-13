@@ -5,7 +5,7 @@
 
 void update(cl_float4* pos, cl_float4* color,
 		     cl_float4* force, cl_float4* vel, float* potential,
-		     float bound, float dt, int num);
+		     float bound, float dt, int num, double waitRatio);
 
 #endif
 

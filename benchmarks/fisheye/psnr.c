@@ -27,10 +27,14 @@ typedef struct tagBmpHeader {
 int main(int argc, char *argv[])
 {
 	FILE *corr, *perf;
+	FILE *diff;
   BmpHeader h1, h2;
 
 	corr = fopen(argv[1],"rb");
 	perf = fopen(argv[2], "rb");
+
+	if ( argc == 4 )
+	diff = fopen(argv[3], "wb");
 
 	if ( corr == NULL )
 	{
@@ -50,6 +54,8 @@ int main(int argc, char *argv[])
 	for ( i = 0 ; i < 2 ; i++){
 		c = getc(perf);
 		p = getc(corr);
+		if ( argc==4 )
+			putc(c, diff);
 	}
 
   fread(&h1, sizeof(h1), 1, perf);
@@ -61,7 +67,8 @@ int main(int argc, char *argv[])
     printf("File dimensions do not match (%dx%d and %dx%d)\n", 
       h1.width, h1.height, h2.width, h2.height);
   }
-  
+	if ( argc==4 )
+		fwrite(&h1, sizeof(h1), 1, diff);
 
 	MSE = 0.0;
 	for ( i = 0 ; i < SIZE(h1.width,h1.height) ; i++){
@@ -72,17 +79,26 @@ int main(int argc, char *argv[])
 			printf("Failed to read 2 chars\n");
 			return 1;
 		}
-		t = (int)c - (int)p;
-		if ( t > 256 )
-		  exit(0);
+		t = abs((int)c - (int)p);
+		
+		c = t;
+
+		if ( argc==4 )
+			fwrite(&c, sizeof(char), 1, diff);
+
 		t = t * t;
-		MSE = MSE + t;
+		MSE = MSE + t/(double)SIZE(h1.width,h1.height);
 	}
-	MSE =MSE/SIZE(h1.width,h1.height);
 	
-	PSNR = 10 * log10(255*255/MSE);
+	PSNR = 10.0 * log10(255.0*255.0/MSE);
 
 	printf("ERROR=%.2lf\n",PSNR);
+
+
+	if ( argc==4 )
+		fclose(diff);
+	fclose(corr);
+	fclose(perf);
 	
 	return 0;
 

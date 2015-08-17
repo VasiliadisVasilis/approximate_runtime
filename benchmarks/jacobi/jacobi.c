@@ -10,11 +10,12 @@ typedef void (*TASK)(void*);
 
 long my_time();
 
-#define TASK_WORK   380
-#define SUPER_BLOCK   20
+#define USE_SUPERBLOCKS 0
+#define TASK_WORK   190
+#define SUPER_BLOCK   2
 
 #if TASK_WORK%SUPER_BLOCK != 0
-	#error Fix dem values son!
+#error Fix dem values son!
 #endif
 
 typedef struct ARG_T arg_t;
@@ -40,8 +41,8 @@ double *construct_solution(double *ret,  int size)
 	int j;
 
 	for ( j=0; j<size; ++j ) {
-		//ret[j] = fmod((double)(rand()-RAND_MAX/2.0),size);
-		ret[j] = 1.0;
+		//ret[j] = fmod((double)(rand()-RAND_MAX/2.0),2);
+		ret[j] = 10.0;
 	}
 
 	return ret;
@@ -81,36 +82,24 @@ double *construct_jacobi_matrix(double *ret, int diagonally_dominant, int size) 
 
 	for ( i=0; i<size; ++i ) {
 		for ( j=0; j<size; ++j ) {
-			if (  fabs(j-i) < sure )  
+			if ( abs(j-i) < 200 )
 			{
-				ret[i*size+j] = (double)(rand())-(double)RAND_MAX/2.0;
-				ret[i*size+j] = fmod(ret[i*size+j], size);
-				ret[i*size+j] /= (double)(pow(fabs(i-j)+1,4));
-			}
-			else if ( (rand()%100) < 10)
-			{
-				ret[i*size+j] = (double)(rand())-RAND_MAX/2.0;
-				ret[i*size+j] = fmod(ret[i*size+j], size);
-				ret[i*size+j] /= (size*size); 
+				ret[i*size+j] = (double)(rand()%(size-(abs(j-i))))/(double)size;
 			}
 			else
-				ret[i*size+j] = 0.0;
+			{
+				ret[i*size+j] = (double)(rand()%100)/(double)(size);
+			}
 		}
 	}
 
 	if ( diagonally_dominant ) {
 		for ( i=0; i<size; ++i ) {
 			sum = 0;
-			for ( j=0; j<i; ++j )  {
-				sum+= fabs(ret[i*size+j]);
+			for ( j=0; j<size; ++j )  {
+				sum += fabs(ret[i*size+j]);
 			}
-			for ( j=i+1; j<size; ++j ) {
-				sum+= fabs(ret[i*size+j]);
-			}
-			sum += 0.00000000000001;
-			ret[i*size+i] = sum;
-			if ( rand()%100 < 50 )
-				ret[i*size+i] = - ret[i*size+i];
+			ret[i*size+i] = fabs(ret[i*size+i]) + sum;
 		}
 	}
 
@@ -168,6 +157,7 @@ void jacobi_task(void *_args)
 	}
 }
 
+#if USE_SUPERBLOCKS
 void jacobi_task_approx(void *_args)
 {
 	arg_t *a = (arg_t*) _args;
@@ -216,10 +206,73 @@ void jacobi_task_approx(void *_args)
 		for ( j=0; j<SUPER_BLOCK; ++j )
 			x1[i*SUPER_BLOCK+j] = s[c]*
 				fabs(A_appr[i*size/SUPER_BLOCK+j]/A[(i*SUPER_BLOCK+j)*size+i*SUPER_BLOCK+j]);
-			
+
 	}
 
 }
+#else
+void jacobi_task_approx(void *_args)
+{
+	arg_t *a = (arg_t*) _args;
+	int i, size;
+	double *A, *x, *x1, *b;
+	long int i_e, i_b;
+	long int j, j_e, j_b, j_start, j_end;
+	long int c;
+	double s[TASK_WORK];
+
+	const long int num_blocks = 2;
+
+	i = a->i;
+	size = a->size;
+	A = a->A;
+	x = a->x;
+	x1 = a->x1;
+	b = a->b;
+
+
+	i_b = i;
+	if ( size-i > TASK_WORK )
+		i_e = i+TASK_WORK;
+	else
+		i_e = size;
+	for (c=0; c<TASK_WORK; ++c)
+		s[c] = 0.0;
+
+	j_start = i_b - num_blocks*TASK_WORK;
+	j_end = i_b + num_blocks*TASK_WORK;
+	
+
+	if ( j_start < 0 )
+		j_start = 0;
+
+	if ( j_end > size )
+		j_end = size;
+
+
+	for (j_b=j_start, j_e=j_b+TASK_WORK;
+			j_e <= j_end;
+			j_e+=TASK_WORK, j_b+=TASK_WORK)
+	{
+		for ( j=j_b; j<j_e; j++)
+		{
+			for (c=0, i=i_b; i<i_e; ++i, ++c)
+			{
+				if ( j!=i )
+				{
+					s[c] += A[i*size+j] * x[j];
+				}
+			}
+		}
+	}
+
+	for ( c=0, i=i_b; i<i_e; ++i, ++c )
+	{ 
+		s[c] = ( (double) b[i] - s[c] ) / (double)A[i*size+i];
+		x1[i] = s[c];
+	}
+}
+#endif
 
 // This is the actual benchmark kernel
 int jacobi(double *A, double *A_appr, double *x, double *x1,  double *b, double* y,
@@ -230,7 +283,7 @@ int jacobi(double *A, double *A_appr, double *x, double *x1,  double *b, double*
 	task_t *task;
 	arg_t arg;
 	char group_name[100];
-
+	double prev_diff = 10000;
 	dif = itol*100+1;
 	for (i=0; i<size; ++i )
 	{
@@ -244,15 +297,19 @@ int jacobi(double *A, double *A_appr, double *x, double *x1,  double *b, double*
 	arg.b = b;
 
 	significance = ratio<1.0? NON_SIGNIFICANT +1 : SIGNIFICANT;
-	
+
 	*iters_approx = 0;
+	int start_i = 0;
 
 	for ( iter = 0; (iter<(*iters)) /*&& (  dif > itol ) */; ++iter ) {
 		sprintf(group_name, "jcb%d", iter);
 		if ( significance != SIGNIFICANT)
 		{
+			start_i = rand() % (size/TASK_WORK);
+			start_i *= TASK_WORK;
+
 			for ( i=0; i<size; i+=TASK_WORK ) {
-				arg.i = i;
+				arg.i = (i  + start_i) % size;
 				task = new_task(jacobi_task, &arg, sizeof(arg), jacobi_task_approx, significance);
 				push_task(task, group_name);
 			}
@@ -267,32 +324,39 @@ int jacobi(double *A, double *A_appr, double *x, double *x1,  double *b, double*
 		}
 
 		wait_group(group_name, NULL, NULL, SYNC_RATIO, 0, 0, ratio, 0);
-		
+
 		if ( significance != SIGNIFICANT )
 		{
 			(*iters_approx) ++;
 			dif = 0.0;
+
+			dif = 0.0;
 			for ( i=0; i<size; i++ ) {
-				t = fabs(x[i] - x1[i] );
+				t = fabs(y[i] - x1[i] )/fabs(y[i]);
+				x[i] = x1[i];
 				if ( t>dif ) {
 					dif = t;
 				}
 			}
-			if ( iter >= 0.1**iters )
+
+
+			if (  fabs(prev_diff - dif) < itol|| iter >= 0.9**iters )
 			{
 				significance = SIGNIFICANT;
 				ratio = 1.0;
 			}
+			prev_diff = dif;
 		}
 
 		dif = 0.0;
 		for ( i=0; i<size; i++ ) {
-			t = fabs(y[i] - x1[i] );
+			t = fabs(y[i] - x1[i] )/fabs(y[i]);
 			x[i] = x1[i];
 			if ( t>dif ) {
 				dif = t;
 			}
 		}
+		printf( "dif=%.32lg\n",dif);
 	}
 	printf( "ERROR=%.32lg\n",dif);
 	*iters = iter;
@@ -314,7 +378,9 @@ void task_construct(arg_t *args)
 			{
 				for ( c=0; c<SUPER_BLOCK; ++c )
 				{
-					m += A[(i*SUPER_BLOCK + r )*size + j*SUPER_BLOCK +c] / (double)(SUPER_BLOCK*SUPER_BLOCK);
+					double t = A[(i*SUPER_BLOCK + r )*size + j*SUPER_BLOCK +c]
+						/ (double)(SUPER_BLOCK*SUPER_BLOCK);
+					m += t;
 				}
 			}
 
@@ -322,6 +388,10 @@ void task_construct(arg_t *args)
 		}
 	}
 }
+
+#if 0
+m += A[(i*SUPER_BLOCK + r )*size + j*SUPER_BLOCK +c] / (double)(SUPER_BLOCK*SUPER_BLOCK);
+#endif
 
 void construct_appr_mat(double *appr_mat, double *mat, int size)
 {
@@ -366,7 +436,7 @@ int main(int argc, char* argv[]) {
 	_seed =strtol(argv[4], NULL, 10);
 	THREADS=atoi(argv[5]);
 	ratio = atof(argv[6]);
-	
+
 	printf("Seed: %ld\n", _seed);
 	printf("Size: %ld\n", N);
 	printf("Tol: %lg\n", itol);
@@ -378,7 +448,7 @@ int main(int argc, char* argv[]) {
 	x1 = (double*) calloc(N, sizeof(double));
 	assert(x1);
 	assert(x);
-	
+
 	if ( ratio < 1.0 )
 	{
 		appr_mat = calloc((N*N)/(SUPER_BLOCK*SUPER_BLOCK), sizeof(double));
@@ -393,10 +463,13 @@ int main(int argc, char* argv[]) {
 	mat = construct_jacobi_matrix(mat, diagonally_dominant, N);
 	b = construct_right(b, N, mat, y);
 	init_system(THREADS);
+
+	#if USE_SUPERBLOCKS
 	if ( ratio < 1.0 )
 	{
 		construct_appr_mat(appr_mat, mat, N);
 	}
+	#endif
 	ret = jacobi(mat, appr_mat, x, x1, b, y, N, itol, &iters, &iters_approx, ratio);
 	shutdown_system();
 	printf("Iterations: %ld - %ld\n", iters, iters_approx);

@@ -12,6 +12,10 @@ LFLAGS = -L../../
 
 LIBS += -lm -lrt -lrtsrel -lpthread -lglut -lGLEW -lGLU
 
+all: nbody diff
+
+diff:compare.c
+	gcc -O3 -o diff compare.c -lm
 
 nbody:nbody.o simulation.o
 	$(CXX) -o nbody $(CFLAGS) $(INCLUDE) $(LFLAGS) *.o $(LIBS) 

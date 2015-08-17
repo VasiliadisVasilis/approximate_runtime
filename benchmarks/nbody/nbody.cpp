@@ -21,6 +21,8 @@
 
 #include <runtime.h>
 
+
+
 double ratio=-1.0f;
 int particlesnumber;
 float bound, dt, duration, runtime, *potential;
@@ -315,9 +317,9 @@ int main(int argc, char *argv[])
 
 		color[i] = f4(1.0f, 0.0f, 0.0f, 1.0f);
 	}
-	
+
 	init_system(threads);
-	
+
 	if ( userIters == -1 )
 	{
 		max_steps = (int)duration/dt;
@@ -326,7 +328,37 @@ int main(int argc, char *argv[])
 	{
 		max_steps = userIters;
 	}
-	#ifdef GRAPHICS
+
+	double length = 2*bound;
+
+	for (int i=0; i<BlockZ; ++i )
+	{
+		for (int j=0; j<BlockY; ++j )
+		{
+			for (int c=0; c<BlockX; ++c )
+			{
+				particles[i][j][c].clear();
+			}
+		}
+	}
+
+	for (int i=0; i<particlesnumber; ++i )
+	{
+		int x, y, z;
+
+		z = BlockZ * (pos[i].z+bound) / length;
+		y = BlockY * (pos[i].y+bound) / length;
+		x = BlockX * (pos[i].x+bound) / length;
+
+		particles[z][y][x].push_back(i);
+
+	}
+
+
+	std::vector<double> energies;
+
+
+#ifdef GRAPHICS
 	if (graphics)
 	{
 		InitializeOpenGL(argc,argv);
@@ -347,46 +379,101 @@ int main(int argc, char *argv[])
 		glutMainLoop();
 	}
 	else
-	#endif
+#endif
 	{
+
+
+		double E_kin = 0.0, E_V = 0.0;
+
 		update(pos, color, force, vel, potential, bound, dt, particlesnumber, ratio);
+		E_kin = 0;
+		E_V = 0;
+		for (int i=0; i < particlesnumber; i++)
+		{
+			E_kin += 0.5f * ((double)vel[i].x*vel[i].x + (double)vel[i].y*vel[i].y 
+					+ (double)vel[i].z*vel[i].z);
+			E_V += potential[i];
+		}
+
+		E_V += E_kin;
+
+		energies.push_back(E_V);
 
 		for (int run=1; run<=max_steps; run++)
 		{
+
+			if ( run % 10 == 0)
+			{
+				for (int i=0; i<BlockZ; ++i )
+				{
+					for (int j=0; j<BlockY; ++j )
+					{
+						for (int c=0; c<BlockX; ++c )
+						{
+							particles[i][j][c].clear();
+						}
+					}
+				}
+
+				for (int i=0; i<particlesnumber; ++i )
+				{
+					int x, y, z;
+
+					z = BlockZ * (pos[i].z+bound) / length;
+					y = BlockY * (pos[i].y+bound) / length;
+					x = BlockX * (pos[i].x+bound) / length;
+
+					if ( x == BlockX )
+						x = BlockX-1;
+					if ( y == BlockY )
+						y = BlockY-1;
+					if ( z == BlockZ )
+						z = BlockZ -1;
+
+					particles[z][y][x].push_back(i);
+
+				}
+
+			}
+
 			update(pos, color, force, vel, potential, bound, dt, particlesnumber, ratio);
+
+			E_kin = 0;
+			E_V = 0;
+			for (int i=0; i < particlesnumber; i++)
+			{
+				E_kin += 0.5f * ((double)vel[i].x*vel[i].x + (double)vel[i].y*vel[i].y 
+						+ (double)vel[i].z*vel[i].z);
+				E_V += potential[i];
+			}
+
+			E_V += E_kin;
+
+			energies.push_back(E_V);
 		}
 	}
 
 	shutdown_system();
 
-	double E_kin = 0.0, E_V = 0.0;
-	for (int i=0; i < particlesnumber; i++)
-	{
-		E_kin += 0.5f * ((double)vel[i].x*vel[i].x + (double)vel[i].y*vel[i].y + (double)vel[i].z*vel[i].z);
-		E_V += potential[i];
-	}
-	
-	
-	printf("System's Total Energy:%.32g\n",E_kin+E_V);
-
-
-	
 	std::ofstream output;
-	E_kin += E_V;
 	output.open("positions", std::ios::binary);
-	output.write((const char*)&particlesnumber, sizeof(particlesnumber));
-	output.write((const char*)&E_V, sizeof(E_V));
+	output.write((const char*)&max_steps, sizeof(max_steps));
 
-	for ( int i=0; i<particlesnumber; ++i )
+	std::vector<double>::iterator b, e;
+
+	b = energies.begin();
+	e = energies.end();
+
+	double E;
+
+	for (; b!=e; ++b)
 	{
-		output.write((const char*)&pos[i].x, sizeof(float));
-		output.write((const char*)&pos[i].y, sizeof(float));
-		output.write((const char*)&pos[i].z, sizeof(float));
-
-		// std::cout << pos[i].x << " "  << pos[i].y << " " << pos[i].z << std::endl;
+		E = *b;
+		output.write((const char*)&E, sizeof(E));
 	}
-
 	output.close();
+
+	printf("System's Total Energy:%.32g\n",E);
 
 	return 0;
 

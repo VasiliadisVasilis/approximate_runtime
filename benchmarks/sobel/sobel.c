@@ -123,7 +123,7 @@ void sobel_task_approx(void *_args)
 			x = sobelx2(input, width, i, j);
 			y = sobely2(input, width, i, j);
 			x = abs(x) + abs(y);
-			x *= 1.5;
+			x *= 1.45;
 			if ( x > 255)
 				x = 255;
 			
@@ -237,8 +237,7 @@ int main(int argc, char* argv[])
 	end = this_time();
 	shutdown_system();
 	PSNR = calc_psnr(output_image, sobel_image, width, height);
-	printf("PSNR,%lg\n", PSNR);
-	printf("Duration,%lg\n", (end-start)/1000.0);
+	printf("PSNR=%lg\n", PSNR);
 #if 0
 	f = fopen("sobel_output_512x512_25Hz_8bit.bw", "wb");
 	for ( row=0; row<height; ++row )

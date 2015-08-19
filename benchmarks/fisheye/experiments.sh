@@ -2,7 +2,7 @@
 mkdir -p exps
 mkdir -p plots
 ratios=`seq 0.0 0.1 1.0`
-num=3
+num=4
 threads=23
 numpics=100
 rm -f exps/output
